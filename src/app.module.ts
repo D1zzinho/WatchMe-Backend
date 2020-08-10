@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { VideosController } from './videos/videos.controller';
+import { VideosModule } from "./videos/videos.module";
 
 @Module({
-  imports: [],
-  controllers: [AppController, VideosController],
-  providers: [AppService],
+    imports: [
+        MongooseModule.forRoot('mongodb://localhost/skyvid', {
+            useNewUrlParser: true
+        }),
+        VideosModule
+    ],
+    controllers: [AppController],
+    providers: [AppService],
 })
 export class AppModule {}
