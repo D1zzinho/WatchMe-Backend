@@ -1,6 +1,6 @@
-import {Connection, Model} from 'mongoose';
+import { Model } from 'mongoose';
 import { Injectable } from '@nestjs/common';
-import {InjectConnection, InjectModel} from '@nestjs/mongoose';
+import { InjectModel } from '@nestjs/mongoose';
 import { Video } from "./schemas/video.schema";
 
 @Injectable()
@@ -33,8 +33,63 @@ export class VideosService {
             }
         });
 
-        const videos = this.videoModel.aggregate(matchingQuery);
+        const videos = this.videoModel.aggregate(matchingQuery).sort({ _id: -1 });
 
         return videos;
     }
+
+
+    async findSimilarVideos(tags: Array<string>): Promise<Video[]> {
+        const matchingQuery = new Array<Object>();
+        const insideQuery = new Array<Object>();
+
+        tags.forEach(tag => {
+            tag = tag.replace(/[{()}]/g, '').replace(/[\[\]']+/g, '');
+
+            insideQuery.push({
+                '$or': [
+                    {
+                        'title': new RegExp(tag, 'i')
+                    },
+                    {
+                        'desc': new RegExp(tag, 'i')
+                    },
+                    {
+                        'tags': new RegExp(tag, 'i')
+                    }
+                ]
+            })
+        })
+
+        matchingQuery.push({
+            '$match': {
+                '$or': insideQuery
+            }
+        })
+
+        const videos = this.videoModel.aggregate(matchingQuery).sort({ _id: -1 });
+
+        return videos;
+    }
+
+
+    async addVideo(video: Video): Promise<Object> {
+        try {
+            const addVideo = await this.videoModel.create(video);
+            await addVideo.save();
+
+            return {
+                added: true,
+                message: 'Video uploaded successfully!'
+            }
+
+        }
+        catch (err) {
+            return {
+                added: false,
+                message: err.message
+            }
+        }
+    }
+
 }

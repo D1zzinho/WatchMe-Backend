@@ -1,7 +1,20 @@
-import {Controller, Get, Param, Query, Res} from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Post,
+    Query,
+    Res,
+    UploadedFile,
+    UseInterceptors
+} from '@nestjs/common';
 import {VideosService} from "./videos.service";
 import paginate from "jw-paginate";
-import {Video} from "./schemas/video.schema";
+import {diskStorage} from 'multer';
+import {FileInterceptor} from "@nestjs/platform-express";
+import {editFileName, generateThumbAndPreview, videoFileFilter} from './utils/upload.utils';
+
 
 @Controller('videos')
 export class VideosController {
@@ -45,7 +58,7 @@ export class VideosController {
             return res.json({
                 pages,
                 videosOnPage,
-                message: 'Found ' + videos.length + ' videos'
+                message: `Found ${videos.length} videos`
             });
         }
         catch (err) {
@@ -53,6 +66,48 @@ export class VideosController {
                 message: err.message
             });
         }
+    }
+
+
+    @Post('/similar')
+    async getSimilarVideos(@Body('tags') tags: Array<string>, @Res() res): Promise<JSON> {
+        try {
+            const videos = await this.videosService.findSimilarVideos(tags);
+            return res.json(videos);
+        }
+        catch (err) {
+            return res.json({
+                message: err.message
+            });
+        }
+    }
+
+
+    @Post('/upload')
+    @UseInterceptors(FileInterceptor('file', {
+        storage: diskStorage({
+            destination: './public/uploads',
+            filename: editFileName
+        }),
+        fileFilter: videoFileFilter
+    }))
+    async addVideo(@UploadedFile() file, @Body('video') newVideo: string, @Res() res): Promise<JSON> {
+        if (file !== undefined) {
+            let data = null;
+            const saveVideoInDatabase = await this.videosService.addVideo(JSON.parse(newVideo)).then(res => data = res);
+
+            if (data.added === true) { generateThumbAndPreview(file.filename); }
+
+            return res.json({
+                file: file,
+                saved: saveVideoInDatabase,
+                uploaded: true
+            });
+        }
+        return res.json({
+            file: file,
+            uploaded: false
+        })
     }
 
 

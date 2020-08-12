@@ -7,10 +7,10 @@ export class Video extends Document {
     title: string;
 
     @Prop()
-    desc: number;
+    desc: string;
 
     @Prop()
-    tags: string;
+    tags: Array<string>;
 
     @Prop({ required: true })
     path: string;
