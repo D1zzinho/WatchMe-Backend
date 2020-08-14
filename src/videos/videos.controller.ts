@@ -6,7 +6,7 @@ import {
     Post,
     Query,
     Res,
-    UploadedFile,
+    UploadedFile, UseGuards,
     UseInterceptors
 } from '@nestjs/common';
 import {VideosService} from "./videos.service";
@@ -14,6 +14,7 @@ import paginate from "jw-paginate";
 import {diskStorage} from 'multer';
 import {FileInterceptor} from "@nestjs/platform-express";
 import {editFileName, generateThumbAndPreview, videoFileFilter} from './utils/upload.utils';
+import {AuthGuard} from "@nestjs/passport";
 
 
 @Controller('videos')
@@ -22,6 +23,7 @@ export class VideosController {
     constructor(private readonly videosService: VideosService) {}
 
     @Get()
+    @UseGuards(AuthGuard('jwt'))
     async getAllVideos(@Res() res, @Query('page') pageParam): Promise<JSON> {
         try {
             const videos = await this.videosService.findAll();
