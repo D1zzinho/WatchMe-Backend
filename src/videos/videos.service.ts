@@ -92,4 +92,21 @@ export class VideosService {
         }
     }
 
+    async updateViews(id: string): Promise<Object> {
+        try {
+            await this.videoModel.findByIdAndUpdate(id, { $inc: { visits: 1 }});
+
+            return {
+                updated: true,
+                message: 'Added view!'
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
+    }
+
 }
