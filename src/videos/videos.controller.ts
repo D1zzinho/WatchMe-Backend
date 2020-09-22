@@ -16,6 +16,7 @@ import {FileInterceptor} from "@nestjs/platform-express";
 import {editFileName, generateThumbAndPreview, videoFileFilter} from './utils/upload.utils';
 import {AuthGuard} from "@nestjs/passport";
 import {Video} from "./schemas/video.schema";
+import {ApiBearerAuth} from "@nestjs/swagger";
 
 
 @Controller('videos')
@@ -25,6 +26,7 @@ export class VideosController {
 
     @Get()
     @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
     async getAllVideos(@Res() res, @Query('page') pageParam): Promise<JSON> {
         try {
             const videos = await this.videosService.findAll();
@@ -36,10 +38,10 @@ export class VideosController {
 
             const videosOnPage = videos.slice(pages.startIndex, pages.endIndex + 1);
 
-            return res.json({ pages, videosOnPage });
+            return await res.json({ pages, videosOnPage });
         }
         catch (err) {
-            return res.json({
+            return await res.json({
                 message: err.message
             });
         }
@@ -72,7 +74,7 @@ export class VideosController {
                 message = `Query cannot be null!`;
             }
 
-            return res.json({
+            return await res.json({
                 isResult: found,
                 pages,
                 videosOnPage,
@@ -80,7 +82,7 @@ export class VideosController {
             });
         }
         catch (err) {
-            return res.json({
+            return await res.json({
                 message: err.message
             });
         }
@@ -89,13 +91,16 @@ export class VideosController {
 
     @Post('/similar')
     @UseGuards(AuthGuard('jwt'))
-    async getSimilarVideos(@Body('tags') tags: Array<string>, @Res() res): Promise<JSON> {
+    async getSimilarVideos(@Body('tags') tags: Array<string>, @Body('id') id: string, @Res() res): Promise<JSON> {
         try {
-            const videos = await this.videosService.findSimilarVideos(tags);
-            return res.json(videos);
+            const foundVideos = await this.videosService.findSimilarVideos(tags);
+
+            const videos = this.videosService.removeAllWithWantedName(foundVideos, id);
+
+            return await res.json(videos);
         }
         catch (err) {
-            return res.json({
+            return await res.json({
                 message: err.message
             });
         }
@@ -137,12 +142,12 @@ export class VideosController {
         try {
             const updateViews = await this.videosService.updateViews(id);
 
-            return res.json({
+            return await res.json({
                 updateViews
             })
         }
         catch (err) {
-            return res.json({
+            return await res.json({
                 message: err.message
             })
         }
@@ -154,10 +159,10 @@ export class VideosController {
     async getVideo(@Res() res, @Param('id') id): Promise<JSON> {
         try {
             const video = await this.videosService.findVideo(id);
-            return res.json(video);
+            return await res.json(video);
         }
         catch (err) {
-            return res.json({
+            return await res.json({
                 message: err.message
             });
         }

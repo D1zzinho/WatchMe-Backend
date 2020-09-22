@@ -46,11 +46,6 @@ export class AuthController {
         };
         const foundUser = await this.authService.validateUser(user);
 
-        if (foundUser !== null) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        return foundUser !== null;
     }
 }

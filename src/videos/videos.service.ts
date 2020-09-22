@@ -17,21 +17,60 @@ export class VideosService {
 
     async searchVideosByQuery(query: string): Promise<Video[]> {
         const matchingQuery = new Array<Object>();
-        matchingQuery.push({
-            '$match': {
-                '$or': [
-                    {
-                        'title': new RegExp(query, 'i')
-                    },
-                    {
-                        'desc': new RegExp(query, 'i')
-                    },
-                    {
-                        'tags': new RegExp(query, 'i')
-                    }
-                ]
-            }
-        });
+
+        const titleQuery = new Array<Object>();
+        const descQuery = new Array<Object>();
+        const tagsQuery = new Array<Object>();
+
+        const words = query.split(' ');
+        if (words.length > 0) {
+            words.forEach(word => {
+                titleQuery.push({
+                    'title': new RegExp(word, 'i')
+                });
+
+                descQuery.push({
+                    'desc': new RegExp(word, 'i')
+                });
+
+                tagsQuery.push({
+                    'tags': new RegExp(word, 'i')
+                });
+            });
+
+            matchingQuery.push({
+                '$match': {
+                    '$or': [
+                        {
+                            '$and': titleQuery
+                        },
+                        {
+                            '$and': descQuery
+                        },
+                        {
+                            '$and': tagsQuery
+                        }
+                    ]
+                }
+            })
+        }
+        else {
+            matchingQuery.push({
+                '$match': {
+                    '$or': [
+                        {
+                            'title': new RegExp(query, 'i')
+                        },
+                        {
+                            'desc': new RegExp(query, 'i')
+                        },
+                        {
+                            'tags': new RegExp(query, 'i')
+                        }
+                    ]
+                }
+            });
+        }
 
         const videos = this.videoModel.aggregate(matchingQuery).sort({ _id: -1 });
 
@@ -39,7 +78,7 @@ export class VideosService {
     }
 
 
-    async findSimilarVideos(tags: Array<string>): Promise<Video[]> {
+    async findSimilarVideos(tags: Array<string>): Promise<Array<Video>> {
         const matchingQuery = new Array<Object>();
         const insideQuery = new Array<Object>();
 
@@ -92,6 +131,7 @@ export class VideosService {
         }
     }
 
+
     async updateViews(id: string): Promise<Object> {
         try {
             await this.videoModel.findByIdAndUpdate(id, { $inc: { visits: 1 }});
@@ -107,6 +147,20 @@ export class VideosService {
                 message: err.message
             }
         }
+    }
+
+
+    removeAllWithWantedName(arr, value): Promise<Array<Video>> {
+        let i = 0;
+        while (i < arr.length) {
+            if (arr[i]._id.toString() === value) {
+                arr.splice(i, 1);
+            } else {
+                ++i;
+            }
+        }
+
+        return arr;
     }
 
 }
