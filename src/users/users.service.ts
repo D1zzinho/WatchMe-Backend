@@ -14,8 +14,15 @@ export class UserService {
     async create(userDTO: RegisterDTO) {
         const { username, password, email } = userDTO;
         const user = await this.userModel.findOne({ username });
-        if (user !== null) {
-            throw new HttpException('User already exists', HttpStatus.BAD_REQUEST);
+        const userByEmail = await this.userModel.findOne({ email });
+        if (user !== null && userByEmail === null) {
+            throw new HttpException('Username already exists!', HttpStatus.BAD_REQUEST);
+        }
+        else if (user === null && userByEmail !== null) {
+            throw new HttpException('E-mail already exists!', HttpStatus.BAD_REQUEST);
+        }
+        else if (user !== null && userByEmail !== null) {
+            throw new HttpException('Both username and e-mail are in use!', HttpStatus.BAD_REQUEST);
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -51,7 +58,7 @@ export class UserService {
     async findByPayload(payload: Payload) {
         const { username } = payload;
 
-        return await this.userModel.findOne({ username });
+        return this.userModel.findOne({username});
     }
 
     sanitizeUser(user: User) {

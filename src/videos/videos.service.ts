@@ -1,22 +1,105 @@
-import { Model } from 'mongoose';
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Video } from "./schemas/video.schema";
+import mongoose, {Model} from 'mongoose';
+import {Injectable, NotFoundException} from '@nestjs/common';
+import {InjectModel} from '@nestjs/mongoose';
+import {Video} from "./schemas/video.schema";
+import {User} from "../users/schemas/user.schema";
+import {AuthService} from "../auth/auth.service";
+
 
 @Injectable()
 export class VideosService {
-    constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>) {}
+    constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>, @InjectModel(User.name) private readonly userModel: Model<User>, private authService: AuthService) {}
 
     async findAll(): Promise<Video[]> {
-        return this.videoModel.find().sort({ _id: -1 });
+        return this.userModel.aggregate([
+            {
+                '$unwind': {
+                    'path': '$videos',
+                    'includeArrayIndex': 'id',
+                    'preserveNullAndEmptyArrays': false
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'id': '$videos._id',
+                    'title': '$videos.title',
+                    'desc': '$videos.desc',
+                    'tags': '$videos.tags',
+                    'path': '$videos.path',
+                    'thumb': '$videos.thumb',
+                    'cover': '$videos.cover',
+                    'visits': '$videos.visits',
+                    'stat': '$videos.stat',
+                    'author': '$username'
+                }
+            }, {
+                '$sort': {
+                    'id': -1
+                }
+            }
+        ]);
     }
 
-    async findVideo(id: string): Promise<Video> {
-        return this.videoModel.findById(id);
+    async findVideo(id: string): Promise<Video[]> {
+        const video = this.userModel.aggregate([
+            {
+                '$unwind': {
+                    'path': '$videos',
+                    'includeArrayIndex': 'id',
+                    'preserveNullAndEmptyArrays': true
+                }
+            }, {
+                '$match': {
+                    'videos._id': mongoose.Types.ObjectId(id)
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'id': '$videos._id',
+                    'title': '$videos.title',
+                    'desc': '$videos.desc',
+                    'tags': '$videos.tags',
+                    'path': '$videos.path',
+                    'thumb': '$videos.thumb',
+                    'cover': '$videos.cover',
+                    'visits': '$videos.visits',
+                    'stat': '$videos.stat',
+                    'author': '$username'
+                }
+            }
+        ]);
+
+        if (video[0] === null) {
+            throw new NotFoundException('Video not found!');
+        }
+
+        return video;
     }
 
     async searchVideosByQuery(query: string): Promise<Video[]> {
         const matchingQuery = new Array<Object>();
+        matchingQuery.push({
+            '$unwind': {
+                'path': '$videos',
+                'includeArrayIndex': 'id',
+                'preserveNullAndEmptyArrays': true
+            }
+        });
+        matchingQuery.push({
+            '$project': {
+                '_id': 0,
+                'id': '$videos._id',
+                'title': '$videos.title',
+                'desc': '$videos.desc',
+                'tags': '$videos.tags',
+                'path': '$videos.path',
+                'thumb': '$videos.thumb',
+                'cover': '$videos.cover',
+                'visits': '$videos.visits',
+                'stat': '$videos.stat',
+                'author': '$username'
+            }
+        });
 
         const titleQuery = new Array<Object>();
         const descQuery = new Array<Object>();
@@ -72,15 +155,42 @@ export class VideosService {
             });
         }
 
-        const videos = this.videoModel.aggregate(matchingQuery).sort({ _id: -1 });
+        matchingQuery.push({
+            '$sort': {
+                'id': -1
+            }
+        })
 
-        return videos;
+        return this.userModel.aggregate(matchingQuery);
     }
 
 
     async findSimilarVideos(tags: Array<string>): Promise<Array<Video>> {
         const matchingQuery = new Array<Object>();
         const insideQuery = new Array<Object>();
+
+        matchingQuery.push({
+            '$unwind': {
+                'path': '$videos',
+                'includeArrayIndex': 'id',
+                'preserveNullAndEmptyArrays': true
+            }
+        });
+        matchingQuery.push({
+            '$project': {
+                '_id': 0,
+                'id': '$videos._id',
+                'title': '$videos.title',
+                'desc': '$videos.desc',
+                'tags': '$videos.tags',
+                'path': '$videos.path',
+                'thumb': '$videos.thumb',
+                'cover': '$videos.cover',
+                'visits': '$videos.visits',
+                'stat': '$videos.stat',
+                'author': '$username'
+            }
+        });
 
         tags.forEach(tag => {
             tag = tag.replace(/[{()}]/g, '').replace(/[\[\]']+/g, '');
@@ -104,18 +214,17 @@ export class VideosService {
             '$match': {
                 '$or': insideQuery
             }
-        })
+        });
 
-        const videos = this.videoModel.aggregate(matchingQuery).sort({ _id: -1 });
-
-        return videos;
+        return this.userModel.aggregate(matchingQuery);
     }
 
 
-    async addVideo(video: Video): Promise<Object> {
+    async addVideo(video: Video, id: string): Promise<Object> {
         try {
-            const addVideo = await this.videoModel.create(video);
-            await addVideo.save();
+            const newVideo = await new this.videoModel(video);
+
+            await this.userModel.findByIdAndUpdate(id, { $push: { videos: newVideo } });
 
             return {
                 added: true,
@@ -132,9 +241,39 @@ export class VideosService {
     }
 
 
+    async deleteVideo(id: string): Promise<{ deleted: boolean, message: string }> {
+        try {
+            const deleteVideo = await this.userModel.findOneAndUpdate({
+                'videos._id': mongoose.Types.ObjectId(id)
+            }, {
+                $pull: { 'videos': { '_id': mongoose.Types.ObjectId(id) } }
+            });
+
+            if (deleteVideo) {
+                return {
+                    deleted: true,
+                    message: 'Video deleted successfully!'
+                }
+            }
+            else {
+                return {
+                    deleted: false,
+                    message: 'Video deleting error!'
+                }
+            }
+        }
+        catch (err) {
+            return {
+                deleted: false,
+                message: err.message
+            }
+        }
+    }
+
+
     async updateViews(id: string): Promise<Object> {
         try {
-            await this.videoModel.findByIdAndUpdate(id, { $inc: { visits: 1 }});
+            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
 
             return {
                 updated: true,
@@ -150,10 +289,130 @@ export class VideosService {
     }
 
 
+    async updateTitle(id: string, title: string): Promise<Object> {
+        try {
+            console.log(title)
+            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.title': title } });
+
+            return {
+                updated: true,
+                message: 'Title successfully updated!'
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
+    }
+
+
+    async updateDesc(id: string, desc: string): Promise<Object> {
+        try {
+            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.desc': desc } });
+
+            return {
+                updated: true,
+                message: 'Description successfully updated!'
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
+    }
+
+
+    async updateTags(id: string, tags: Array<string>): Promise<Object> {
+        try {
+            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.tags': tags } });
+
+            return {
+                updated: true,
+                message: 'Tags successfully updated!'
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
+    }
+
+
+    async updateStat(id: string): Promise<Object> {
+        try {
+            let message;
+            const video = await this.userModel.aggregate([
+                {
+                    '$unwind': {
+                        'path': '$videos',
+                        'preserveNullAndEmptyArrays': true
+                    }
+                }, {
+                    '$match': {
+                        'videos._id': new mongoose.Types.ObjectId(id)
+                    }
+                }, {
+                    '$project': {
+                        '_id': 0,
+                        'id': '$videos._id',
+                        'title': '$videos.title',
+                        'desc': '$videos.desc',
+                        'tags': '$videos.tags',
+                        'path': '$videos.path',
+                        'thumb': '$videos.thumb',
+                        'cover': '$videos.cover',
+                        'visits': '$videos.visits',
+                        'stat': '$videos.stat',
+                        'author': '$username'
+                    }
+                }
+            ]);
+
+            if (video.length > 0) {
+                const currentStat = Number(video[0].stat);
+
+                if (currentStat === 1) {
+                    await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                    message = 'Video publication status successfully changed to private!';
+                }
+                else {
+                    await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                    message = 'Video publication status successfully changed to public!';
+                }
+
+                return {
+                    updated: true,
+                    message: message
+                }
+            }
+            else {
+                message = 'Video not found!';
+
+                return {
+                    updated: false,
+                    message: message
+                }
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
+    }
+
+
     removeAllWithWantedName(arr, value): Promise<Array<Video>> {
         let i = 0;
         while (i < arr.length) {
-            if (arr[i]._id.toString() === value) {
+            if (arr[i].id.toString() === value) {
                 arr.splice(i, 1);
             } else {
                 ++i;

@@ -1,6 +1,6 @@
 export interface Payload {
     username: string;
-    permissions: number;
+    permissions?: number;
     iat?: number;
     expiresIn?: string;
 }

@@ -54,13 +54,13 @@ export const generateThumbAndPreview = (file) => {
 
                     var videoPreview = new ffmpeg(`./public/uploads/${file}`)
                         .outputOptions(["-vf select='lt(mod(t\,150)\,0.8)',setpts=N/FRAME_RATE/TB", "-af aselect='lt(mod(t\,150)\,0.8)',asetpts=N/SR/TB"])
-                        .saveToFile('./public/uploads/' + file.slice(0,-4) + '_preview.mp4')
+                        .saveToFile('./public/uploads/' + file.slice(0,-4) + '_preview.webm')
 
                 }
                 else {
                     var videoPreview = new ffmpeg(`./public/uploads/${file}`)
                         .outputOptions(["-vf select='lt(mod(t\,45)\,0.8)',setpts=N/FRAME_RATE/TB", "-af aselect='lt(mod(t\,45)\,0.8)',asetpts=N/SR/TB"])
-                        .saveToFile('./public/uploads/' + file.slice(0,-4) + '_preview.mp4')
+                        .saveToFile('./public/uploads/' + file.slice(0,-4) + '_preview.webm')
                 }
 
                 if (videoPreview) {
