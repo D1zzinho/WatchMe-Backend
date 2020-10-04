@@ -13,8 +13,7 @@ async function bootstrap() {
       .setDescription('watchMe api')
       .setVersion('1.0.0')
       .addBearerAuth(
-          { type: 'apiKey', in: 'header', name: 'Authorization' },
-          //'Authorization'
+          { type: 'apiKey', in: 'header', name: 'Authorization' }
       )
       .build();
   const document = SwaggerModule.createDocument(app, options);

@@ -1,4 +1,4 @@
-import {Body, Controller, Post, UseGuards} from '@nestjs/common';
+import {Body, Controller, Post, Res, UseGuards} from '@nestjs/common';
 
 import { UserService } from '../users/users.service';
 import { Payload } from '../types/payload';
@@ -8,7 +8,7 @@ import {AuthGuard} from "@nestjs/passport";
 import {
     ApiBadRequestResponse, ApiBearerAuth,
     ApiBody,
-    ApiCreatedResponse,
+    ApiCreatedResponse, ApiHeader,
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
 
@@ -19,8 +19,24 @@ export class AuthController {
         private authService: AuthService,
     ) {}
 
+
     @Post('login')
-    @ApiCreatedResponse({ description: 'User logged in successfully' })
+    @ApiCreatedResponse({
+        schema: {
+            properties: {
+                user: {
+                    type: 'object',
+                    properties: {
+                        username: { type: 'string' },
+                        _id: { type: 'string' },
+                        permissions: { type: 'number' }
+                    }
+                    },
+                token: { type: 'string' }
+            }
+            },
+        description: 'User logged in successfully'
+    })
     @ApiUnauthorizedResponse({ description: 'User cannot be authorized' })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiBody({ type: LoginDTO })
@@ -35,9 +51,11 @@ export class AuthController {
         return { user, token };
     }
 
+
     @Post('register')
     @ApiCreatedResponse({ description: 'User registered successfully' })
     @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiBody({ type: RegisterDTO, description: 'New user data' })
     async register(@Body() userDTO: RegisterDTO) {
         const user = await this.userService.create(userDTO);
         const newUserData = {
@@ -55,18 +73,47 @@ export class AuthController {
         return { user: newUserData, token };
     }
 
+
     @Post('checkToken')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiCreatedResponse({ description: 'User validated'})
+    @ApiCreatedResponse({ description: 'User validated with token from header' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
-    async checkToken(@Body('user') token: string, @Body('permiss') permiss: number = 1) {
+    @ApiBody({ schema: { properties: { user: { type: 'string' }, permission: { type: 'number', default: 1, example: 1 }}}, description: 'User username and permissions'})
+    async checkTokenByUsernameAndPermissions(@Body('user') username: string, @Body('permission') permission: number = 1) {
         const user: Payload = {
-            username: token,
-            permissions: permiss
+            username: username,
+            permissions: permission
         };
         const foundUser = await this.authService.validateUser(user);
 
         return foundUser !== null;
+    }
+
+
+    @Post('checkCredentials')
+    @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiCreatedResponse({ schema: { properties: { usernameExists: { type: 'boolean' }, emailExists: { type: 'boolean' } } }, description: 'Returns object of two booleans if userdata exists in database' })
+    @ApiBody({ schema: { properties: { username: { type: 'string' }, email: { type: 'string' }}}, description: 'User username and email'})
+    async checkIfUsernameOrEmailExists(@Res() res: any, @Body('username') username: string, @Body('email') email: string): Promise<JSON> {
+        try {
+            const existStatus = {
+                usernameExists: false,
+                emailExists: false
+            };
+
+            const checkUsername = await this.userService.findByPayload({ username });
+            const checkEmail = await this.userService.findByEmail(email);
+
+            if (checkUsername !== null) existStatus.usernameExists = true;
+            if (checkEmail !== null) existStatus.emailExists = true;
+
+            return await res.json(existStatus);
+        }
+        catch (err) {
+            return await res.json({
+                message: err.message
+            })
+        }
     }
 }

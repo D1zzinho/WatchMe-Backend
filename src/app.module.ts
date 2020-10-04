@@ -8,7 +8,7 @@ import { UsersModule } from './users/users.module';
 
 @Module({
     imports: [
-        MongooseModule.forRoot('mongodb://localhost/skyvid', {
+        MongooseModule.forRoot('mongodb://localhost/watchMe', {
             useNewUrlParser: true,
             useFindAndModify: false
         }),

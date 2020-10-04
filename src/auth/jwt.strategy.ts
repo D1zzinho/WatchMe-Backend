@@ -21,6 +21,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             );
         }
 
-        return done(null, user, payload.iat);
+        return done(null, { _id: user._id, username: user.username, permissions: user.permissions, email: user.email }, payload.iat);
     }
 }

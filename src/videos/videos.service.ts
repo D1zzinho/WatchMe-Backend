@@ -1,4 +1,4 @@
-import mongoose, {Model} from 'mongoose';
+import {Types, Model} from 'mongoose';
 import {Injectable, NotFoundException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {Video} from "./schemas/video.schema";
@@ -50,7 +50,7 @@ export class VideosService {
                 }
             }, {
                 '$match': {
-                    'videos._id': mongoose.Types.ObjectId(id)
+                    'videos._id': Types.ObjectId(id)
                 }
             }, {
                 '$project': {
@@ -165,7 +165,27 @@ export class VideosService {
     }
 
 
-    async findSimilarVideos(tags: Array<string>): Promise<Array<Video>> {
+    async findSimilarVideos(id: string): Promise<Array<Video>> {
+        const tagsFromSelectedVideo = await this.userModel.aggregate([
+            {
+                '$unwind': {
+                    'path': '$videos',
+                    'includeArrayIndex': 'id',
+                    'preserveNullAndEmptyArrays': false
+                }
+            }, {
+                '$match': {
+                    'videos._id': Types.ObjectId(id)
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'tags': '$videos.tags'
+                }
+            }
+        ]);
+        const tags = tagsFromSelectedVideo[0].tags;
+
         const matchingQuery = new Array<Object>();
         const insideQuery = new Array<Object>();
 
@@ -222,7 +242,7 @@ export class VideosService {
 
     async addVideo(video: Video, id: string): Promise<Object> {
         try {
-            const newVideo = await new this.videoModel(video);
+            const newVideo = new this.videoModel(video);
 
             await this.userModel.findByIdAndUpdate(id, { $push: { videos: newVideo } });
 
@@ -244,9 +264,9 @@ export class VideosService {
     async deleteVideo(id: string): Promise<{ deleted: boolean, message: string }> {
         try {
             const deleteVideo = await this.userModel.findOneAndUpdate({
-                'videos._id': mongoose.Types.ObjectId(id)
+                'videos._id': Types.ObjectId(id)
             }, {
-                $pull: { 'videos': { '_id': mongoose.Types.ObjectId(id) } }
+                $pull: { 'videos': { '_id': Types.ObjectId(id) } }
             });
 
             if (deleteVideo) {
@@ -273,7 +293,7 @@ export class VideosService {
 
     async updateViews(id: string): Promise<Object> {
         try {
-            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
+            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
 
             return {
                 updated: true,
@@ -292,7 +312,7 @@ export class VideosService {
     async updateTitle(id: string, title: string): Promise<Object> {
         try {
             console.log(title)
-            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.title': title } });
+            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.title': title } });
 
             return {
                 updated: true,
@@ -310,7 +330,7 @@ export class VideosService {
 
     async updateDesc(id: string, desc: string): Promise<Object> {
         try {
-            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.desc': desc } });
+            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.desc': desc } });
 
             return {
                 updated: true,
@@ -328,7 +348,7 @@ export class VideosService {
 
     async updateTags(id: string, tags: Array<string>): Promise<Object> {
         try {
-            await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.tags': tags } });
+            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.tags': tags } });
 
             return {
                 updated: true,
@@ -355,7 +375,7 @@ export class VideosService {
                     }
                 }, {
                     '$match': {
-                        'videos._id': new mongoose.Types.ObjectId(id)
+                        'videos._id': Types.ObjectId(id)
                     }
                 }, {
                     '$project': {
@@ -378,11 +398,11 @@ export class VideosService {
                 const currentStat = Number(video[0].stat);
 
                 if (currentStat === 1) {
-                    await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
                     message = 'Video publication status successfully changed to private!';
                 }
                 else {
-                    await this.userModel.updateOne({ 'videos._id': mongoose.Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
                     message = 'Video publication status successfully changed to public!';
                 }
 

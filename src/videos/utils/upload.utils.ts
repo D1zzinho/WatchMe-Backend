@@ -34,12 +34,22 @@ export const generateThumbAndPreview = (file) => {
                     console.log('screenshots were saved')
                 });
         }
-        else {
+        else if (Math.floor(metadata.format.duration) > 50) {
             var proc = new ffmpeg(`./public/uploads/${file}`)
                 .takeScreenshots({
                     count: 1,
                     filename: file.slice(0,-4) + '.png',
                     timemarks: [ '240' ] // number of seconds
+                }, `./public/uploads`, function(err) {
+                    console.log('screenshots were saved')
+                });
+        }
+        else {
+            var proc = new ffmpeg(`./public/uploads/${file}`)
+                .takeScreenshots({
+                    count: 1,
+                    filename: file.slice(0,-4) + '.png',
+                    timemarks: [ '5' ] // number of seconds
                 }, `./public/uploads`, function(err) {
                     console.log('screenshots were saved')
                 });

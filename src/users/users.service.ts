@@ -11,6 +11,13 @@ import { User } from "./schemas/user.schema";
 export class UserService {
     constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
+    async getAll(): Promise<User[]> {
+        return this.userModel
+            .find()
+            .sort({ _id: 1 })
+            .select('username email firstname lastname lastLoginDate about permissions');
+    }
+    
     async create(userDTO: RegisterDTO) {
         const { username, password, email } = userDTO;
         const user = await this.userModel.findOne({ username });
@@ -33,9 +40,6 @@ export class UserService {
         return this.sanitizeUser(createdUser);
     }
 
-    async find() {
-        return this.userModel.find();
-    }
 
     async findByLogin(userDTO: LoginDTO) {
         const { username, password } = userDTO;
@@ -55,11 +59,18 @@ export class UserService {
         }
     }
 
+
     async findByPayload(payload: Payload) {
         const { username } = payload;
 
         return this.userModel.findOne({username});
     }
+
+
+    async findByEmail(email: string) {
+        return this.userModel.findOne({ email });
+    }
+
 
     sanitizeUser(user: User) {
         const sanitized = user.toObject();
