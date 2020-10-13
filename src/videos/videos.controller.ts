@@ -21,12 +21,13 @@ import {
     ApiBearerAuth,
     ApiBody, ApiCreatedResponse,
     ApiOkResponse,
-    ApiParam,
+    ApiParam, ApiQuery,
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
 import * as fs from "fs";
-import {Request} from "express";
+import {Request, Response} from "express";
 import {User} from "../users/schemas/user.schema";
+import {UpdateVideoResponseSchema} from "./schemas/updateVideoResponse.schema";
 
 
 @Controller('videos')
@@ -46,7 +47,7 @@ export class VideosController {
 
             const page = parseInt(pageParam) || 1;
 
-            const pageSize = 15;
+            const pageSize = 16;
             const pages = paginate(videos.length, page, pageSize);
 
             const videosOnPage = videos.slice(pages.startIndex, pages.endIndex + 1);
@@ -55,6 +56,34 @@ export class VideosController {
         }
         catch (err) {
             return await res.json({
+                message: err.message
+            });
+        }
+    }
+
+
+    @Get('/latest')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    @ApiOkResponse({ type: [Video], description: 'Videos with pagination' })
+    @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
+    @ApiQuery({ name: 'limit', type: Number })
+    async getLatestVideos(@Res() res: Response, @Query('limit') limit: number = 10): Promise<Response<Video[]>> {
+        try {
+            const videos = await this.videosService.getLatest(limit);
+
+            if (videos.length > 0) {
+                return res.json(videos);
+            }
+            else {
+                return res.json({
+                    message: 'Videos not found!'
+                })
+            }
+        }
+        catch (err) {
+            return res.json({
                 message: err.message
             });
         }
@@ -76,7 +105,7 @@ export class VideosController {
                 videos = await this.videosService.searchVideosByQuery(query);
 
                 const page = parseInt(pageParam) || 1;
-                const pageSize = 12;
+                const pageSize = 20;
 
                 pages = paginate(videos.length, page, pageSize);
                 videosOnPage = videos.slice(pages.startIndex, pages.endIndex + 1);
@@ -133,6 +162,16 @@ export class VideosController {
             const user = <User> req.user;
             const id = user._id;
 
+
+            const newPath = `uploads/${id}_${newVideoData.path}`;
+            const newCoverPath = `uploads/${id}_${newVideoData.cover}`;
+            const newThumbPath = `uploads/${id}_${newVideoData.thumb}`;
+
+            newVideoData.path = newPath;
+            newVideoData.cover = newCoverPath;
+            newVideoData.thumb = newThumbPath;
+
+
             const saveVideoInDatabase = await this.videosService.addVideo(newVideoData, id).then(res => data = res);
 
             if (data.added === true) { generateThumbAndPreview(file.filename); }
@@ -172,22 +211,20 @@ export class VideosController {
     @Get(':id/similar')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiParam({ name: 'id', schema: { type: 'string' }, description: 'ObjectId of video for which similar videos want to be found by tags' })
+    @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video for which similar videos want to be found by tags' })
     @ApiCreatedResponse({ type: [Video] })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
-    async getSimilarVideosByTags(@Param('id') id: string, @Res() res: any): Promise<Video[]> {
+    async getSimilarVideosByTags(@Param('id') id: string, @Res() res: Response): Promise<Response<Video[]>> {
         try {
             const foundVideos = await this.videosService.findSimilarVideos(id);
 
             const videos = this.videosService.removeAllWithWantedName(foundVideos, id);
 
-            return await res.json(videos);
+            return res.json(videos);
         }
         catch (err) {
-            return await res.json({
-                message: err.message
-            });
+            throw new Error(err.message);
         }
     }
 
@@ -195,73 +232,120 @@ export class VideosController {
     @Patch(':id/title')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiOkResponse({ description: 'Video title successfully changed' })
+    @ApiOkResponse({ type: UpdateVideoResponseSchema, description: 'Video title successfully changed' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBadRequestResponse({ description: 'Bad request' })
-    @ApiParam({ name: 'id', schema: { type: 'string' }, description: 'ObjectId of video user wants to edit' })
-    @ApiBody({ schema: { type: 'object', example: { title: 'string' } }, description: 'New video title is passed in request body' })
-    async updateTitle(@Res() res: any, @Param('id') id: string, @Body('title') title: string): Promise<JSON> {
-        const updateTitle = await this.videosService.updateTitle(id, title);
+    @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video user wants to edit' })
+    @ApiBody({ schema: { type: 'object', properties: { title: { type: 'string' } } }, description: 'New video title is passed in request body' })
+    async updateTitle(@Res() res: Response, @Param('id') id: string, @Body('title') title: string): Promise<Response<UpdateVideoResponseSchema>> {
+        try {
+            await this.videosService.updateTitle(id, title);
 
-        return await res.json(updateTitle);
+            return res.json({
+                updated: true,
+                message: 'Title successfully changed!'
+            });
+        }
+        catch (err) {
+            return res.json({
+                updated: false,
+                message: err.message
+            })
+        }
     }
 
 
     @Patch(':id/desc')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiOkResponse({ description: 'Video description successfully changed' })
+    @ApiOkResponse({ type: UpdateVideoResponseSchema, description: 'Video description successfully changed' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBadRequestResponse({ description: 'Bad request' })
-    @ApiParam({ name: 'id', schema: { type: 'string' }, description: 'ObjectId of video user wants to edit' })
-    @ApiBody({ schema: { type: 'object', example: { desc: 'string' } }, description: 'New video description is passed in request body' })
-    async updateDescription(@Res() res: any, @Param('id') id: string, @Body('desc') desc: string): Promise<JSON> {
-        const updateDescription = await this.videosService.updateDesc(id, desc);
+    @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video user wants to edit' })
+    @ApiBody({ schema: { type: 'object', properties: { desc:  { type: 'string' } } }, description: 'New video description is passed in request body' })
+    async updateDescription(@Res() res: Response, @Param('id') id: string, @Body('desc') desc: string): Promise<Response<UpdateVideoResponseSchema>> {
+        try {
+            await this.videosService.updateDesc(id, desc);
 
-        return await res.json(updateDescription);
+            return res.json({
+                updated: true,
+                message: 'Description successfully changed!'
+            });
+        }
+        catch (err) {
+            return res.json({
+                updated: false,
+                message: err.message
+            })
+        }
     }
 
 
     @Patch(':id/tags')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiOkResponse({ description: 'Video tags successfully changed' })
+    @ApiOkResponse({ type: UpdateVideoResponseSchema, description: 'Video tags successfully changed' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBadRequestResponse({ description: 'Bad request' })
-    @ApiParam({ name: 'id', schema: { type: 'string' }, description: 'ObjectId of video user wants to edit' })
-    @ApiBody({ schema: { type: 'object', example: { tags: 'string' } }, description: 'New video tags are passed in request body' })
-    async updateTags(@Res() res: any, @Param('id') id: string, @Body('tags') tags: string): Promise<JSON> {
-        const tagsArray = tags.split(',');
-        const tagsArrayTrimmed = new Array<string>();
-        tagsArray.forEach(tag => {
-            tagsArrayTrimmed.push(tag.trim());
-        })
+    @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video user wants to edit' })
+    @ApiBody({ schema: { type: 'object', properties: { tags: { type: 'string' } } }, description: 'New video tags are passed in request body' })
+    async updateTags(@Res() res: Response, @Param('id') id: string, @Body('tags') tags: string): Promise<Response<UpdateVideoResponseSchema>> {
+        try {
+            const tagsArray = tags.split(',');
+            const tagsArrayTrimmed = new Array<string>();
+            tagsArray.forEach(tag => {
+                tagsArrayTrimmed.push(tag.trim());
+            })
 
-        const updateTags = await this.videosService.updateTags(id, tagsArrayTrimmed);
+            await this.videosService.updateTags(id, tagsArrayTrimmed);
 
-        return await res.json(updateTags);
+            return res.json({
+                updated: true,
+                message: 'Tags successfully changed!'
+            })
+        }
+        catch (err) {
+            return res.json({
+                updated: false,
+                message: err.message
+            })
+        }
+
     }
 
 
     @Patch(':id/stat')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiOkResponse({ description: 'Video publication status successfully changed' })
+    @ApiOkResponse({ type: UpdateVideoResponseSchema, description: 'Video publication status successfully changed' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBadRequestResponse({ description: 'Bad request' })
-    @ApiParam({ name: 'id', schema: { type: 'string' }, description: 'ObjectId of video user wants to edit' })
-    async updateStatus(@Res() res: any, @Param('id') id: string, @Body('id') sameId: string): Promise<JSON> {
-        if (sameId === id) {
-            const changeStatus = await this.videosService.updateStat(id);
+    @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video user wants to edit' })
+    @ApiBody({ schema: { type: 'object', properties: { id: { type: 'string' } } }, description: 'ObjectId of video user wants to edit' })
+    async updateStatus(@Res() res: Response, @Param('id') id: string, @Body('id') sameId: string): Promise<Response<UpdateVideoResponseSchema>> {
+        try {
+            if (sameId === id) {
+                const updateStatusResult = await this.videosService.updateStat(id);
 
-            return await res.json(changeStatus);
+                return res.json({
+                    updated: updateStatusResult.updated,
+                    message: updateStatusResult.message
+                })
+            }
+            else {
+                return res.json({
+                    updated: false,
+                    message: 'Id error!'
+                })
+            }
         }
-        else {
-            return await res.json({
+        catch (err) {
+            return res.json({
                 updated: false,
-                message: 'Id error.'
+                message: err.message
             })
         }
+
     }
 
 

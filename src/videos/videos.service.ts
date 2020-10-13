@@ -1,14 +1,16 @@
-import {Types, Model} from 'mongoose';
+import {Types, Model, MongooseUpdateQuery} from 'mongoose';
 import {Injectable, NotFoundException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {Video} from "./schemas/video.schema";
 import {User} from "../users/schemas/user.schema";
 import {AuthService} from "../auth/auth.service";
+import {UpdateVideoResponseSchema} from "./schemas/updateVideoResponse.schema";
 
 
 @Injectable()
 export class VideosService {
     constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>, @InjectModel(User.name) private readonly userModel: Model<User>, private authService: AuthService) {}
+
 
     async findAll(): Promise<Video[]> {
         return this.userModel.aggregate([
@@ -39,6 +41,7 @@ export class VideosService {
             }
         ]);
     }
+
 
     async findVideo(id: string): Promise<Video[]> {
         const video = this.userModel.aggregate([
@@ -75,6 +78,40 @@ export class VideosService {
 
         return video;
     }
+
+
+    async getLatest(limit: number): Promise<Video[]> {
+        return this.userModel.aggregate([
+            {
+                '$unwind': {
+                    'path': '$videos',
+                    'includeArrayIndex': 'id',
+                    'preserveNullAndEmptyArrays': false
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'id': '$videos._id',
+                    'title': '$videos.title',
+                    'desc': '$videos.desc',
+                    'tags': '$videos.tags',
+                    'path': '$videos.path',
+                    'thumb': '$videos.thumb',
+                    'cover': '$videos.cover',
+                    'visits': '$videos.visits',
+                    'stat': '$videos.stat',
+                    'author': '$username'
+                }
+            }, {
+                '$sort': {
+                    'id': -1
+                }
+            }, {
+                '$limit': Number(limit)
+            }
+        ]);
+    }
+
 
     async searchVideosByQuery(query: string): Promise<Video[]> {
         const matchingQuery = new Array<Object>();
@@ -310,64 +347,23 @@ export class VideosService {
 
 
     async updateTitle(id: string, title: string): Promise<Object> {
-        try {
-            console.log(title)
-            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.title': title } });
-
-            return {
-                updated: true,
-                message: 'Title successfully updated!'
-            }
-        }
-        catch (err) {
-            return {
-                updated: false,
-                message: err.message
-            }
-        }
+        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.title': title}});
     }
 
 
     async updateDesc(id: string, desc: string): Promise<Object> {
-        try {
-            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.desc': desc } });
-
-            return {
-                updated: true,
-                message: 'Description successfully updated!'
-            }
-        }
-        catch (err) {
-            return {
-                updated: false,
-                message: err.message
-            }
-        }
+        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.desc': desc}});
     }
 
 
     async updateTags(id: string, tags: Array<string>): Promise<Object> {
-        try {
-            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.tags': tags } });
-
-            return {
-                updated: true,
-                message: 'Tags successfully updated!'
-            }
-        }
-        catch (err) {
-            return {
-                updated: false,
-                message: err.message
-            }
-        }
+        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.tags': tags}});
     }
 
 
-    async updateStat(id: string): Promise<Object> {
-        try {
-            let message;
-            const video = await this.userModel.aggregate([
+    async updateStat(id: string): Promise<UpdateVideoResponseSchema> {
+        let message;
+        const video = await this.userModel.aggregate([
                 {
                     '$unwind': {
                         'path': '$videos',
@@ -394,36 +390,29 @@ export class VideosService {
                 }
             ]);
 
-            if (video.length > 0) {
-                const currentStat = Number(video[0].stat);
+        if (video.length > 0) {
+            const currentStat = Number(video[0].stat);
 
-                if (currentStat === 1) {
-                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
-                    message = 'Video publication status successfully changed to private!';
-                }
-                else {
-                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
-                    message = 'Video publication status successfully changed to public!';
-                }
-
-                return {
-                    updated: true,
-                    message: message
-                }
+            if (currentStat === 1) {
+                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                message = 'Video publication status successfully changed to private!';
             }
             else {
-                message = 'Video not found!';
+                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                message = 'Video publication status successfully changed to public!';
+            }
 
-                return {
-                    updated: false,
-                    message: message
-                }
+            return {
+                updated: true,
+                message: message
             }
         }
-        catch (err) {
+        else {
+            message = 'Video not found!';
+
             return {
                 updated: false,
-                message: err.message
+                message: message
             }
         }
     }

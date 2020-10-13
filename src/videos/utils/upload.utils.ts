@@ -14,34 +14,34 @@ export const videoFileFilter = (req, file, callback) => {
 };
 
 export const editFileName = (req, file, callback) => {
+    const id = req.user._id;
     const name = file.originalname.slice(0, -4);
     const fileExtName = extname(file.originalname);
 
-    callback(null, `${name}${fileExtName}`);
+    callback(null, `${id}_${name}${fileExtName}`);
 };
 
 export const generateThumbAndPreview = (file) => {
-    console.log(file)
     ffmpeg.ffprobe(`./public/uploads/${file}`, function(err, metadata) {
         //console.dir(metadata); // all metadata
-        if (Math.floor(metadata.format.duration) > 900) {
+        if (Math.floor(metadata.format.duration) >= 900) {
             var proc = new ffmpeg(`./public/uploads/${file}`)
                 .takeScreenshots({
                     count: 1,
                     filename: file.slice(0,-4) + '.png',
                     timemarks: [ '720' ] // number of seconds
                 }, `./public/uploads`, function(err) {
-                    console.log('screenshots were saved')
+                    console.log(err)
                 });
         }
-        else if (Math.floor(metadata.format.duration) > 50) {
+        else if (Math.floor(metadata.format.duration) > 50 && Math.floor(metadata.format.duration) < 900) {
             var proc = new ffmpeg(`./public/uploads/${file}`)
                 .takeScreenshots({
                     count: 1,
                     filename: file.slice(0,-4) + '.png',
                     timemarks: [ '240' ] // number of seconds
                 }, `./public/uploads`, function(err) {
-                    console.log('screenshots were saved')
+                    console.log(err)
                 });
         }
         else {
@@ -51,12 +51,11 @@ export const generateThumbAndPreview = (file) => {
                     filename: file.slice(0,-4) + '.png',
                     timemarks: [ '5' ] // number of seconds
                 }, `./public/uploads`, function(err) {
-                    console.log('screenshots were saved')
+                    console.log(err)
                 });
         }
 
         if (proc) {
-            console.log('created thumbnail of ' + file)
 
             ffmpeg.ffprobe(`./public/uploads/${file}`, function(err, metadata) {
                 //console.dir(metadata); // all metadata
@@ -74,7 +73,7 @@ export const generateThumbAndPreview = (file) => {
                 }
 
                 if (videoPreview) {
-                    console.log('preview video of ' + file + ' created successfully')
+
 
 
 
