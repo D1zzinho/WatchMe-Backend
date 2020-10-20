@@ -277,6 +277,47 @@ export class VideosService {
     }
 
 
+    async getMostUsedTags(): Promise<Array<{ tag: string, count: number }>> {
+        return this.userModel.aggregate([
+            {
+                '$project': {
+                    '_id': 0,
+                    'tags': '$videos.tags'
+                }
+            }, {
+                '$unwind': {
+                    'path': '$tags',
+                    'preserveNullAndEmptyArrays': false
+                }
+            }, {
+                '$unwind': {
+                    'path': '$tags',
+                    'preserveNullAndEmptyArrays': false
+                }
+            }, {
+                '$group': {
+                    '_id': '$tags',
+                    'count': {
+                        '$sum': 1
+                    }
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'tag': '$_id',
+                    'count': '$count'
+                }
+            }, {
+                '$sort': {
+                    'count': -1
+                }
+            }, {
+                '$limit': 100
+            }
+        ]);
+    }
+
+
     async addVideo(video: Video, id: string): Promise<Object> {
         try {
             const newVideo = new this.videoModel(video);

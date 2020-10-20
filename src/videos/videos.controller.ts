@@ -38,7 +38,7 @@ export class VideosController {
     @Get()
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    @ApiOkResponse({ schema: { type:'object', properties: { pages: { type: 'object', example: {}}, videosOnPage: { type: 'array', example: []} } }, description: 'Videos with pagination' })
+    @ApiOkResponse({ schema: { type: 'object', properties: { pages: { type: 'object', example: {}}, videosOnPage: { type: 'array', example: []} } }, description: 'Videos with pagination' })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     async getAllVideosWithPagination(@Res() res: any, @Query('page') pageParam: any): Promise<JSON> {
@@ -129,6 +129,43 @@ export class VideosController {
                 message: err.message
             });
         }
+    }
+
+
+    @Get('/mostUsedTags')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    @ApiOkResponse({ schema: { properties: { found: { type: 'boolean' }, message: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } } }, description: 'Array of most used tags' })
+    @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
+    async getMostUsedTags(@Res() res: Response): Promise<Response<Array<string>>> {
+        const options = new Array<string>();
+        let message: string;
+        let found: boolean;
+
+        try {
+            const getMostUsedTagsResult = await this.videosService.getMostUsedTags();
+
+            getMostUsedTagsResult.forEach(res => {
+                const trimmedTag = res.tag.trim();
+                options.push(trimmedTag);
+            });
+
+            if (options.length > 0) {
+                message = 'Most used tags found';
+                found = true;
+            }
+            else {
+                message = 'Most used tags not found';
+                found = false;
+            }
+        }
+        catch (err) {
+            message = err.message;
+            found = false;
+        }
+
+        return res.json({ found: found, message: message, options: options });
     }
 
 
