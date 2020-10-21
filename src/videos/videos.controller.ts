@@ -199,10 +199,9 @@ export class VideosController {
             const user = <User> req.user;
             const id = user._id;
 
-
-            const newPath = `uploads/${id}_${newVideoData.path}`;
-            const newCoverPath = `uploads/${id}_${newVideoData.cover}`;
-            const newThumbPath = `uploads/${id}_${newVideoData.thumb}`;
+            const newPath = `uploads/${file.filename}`;
+            const newCoverPath = `uploads/${file.filename.slice(0,-4)}.png`;
+            const newThumbPath = `uploads/${file.filename.slice(0,-4)}_preview.webm`;
 
             newVideoData.path = newPath;
             newVideoData.cover = newCoverPath;

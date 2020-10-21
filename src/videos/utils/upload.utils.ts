@@ -18,7 +18,7 @@ export const editFileName = (req, file, callback) => {
     const name = file.originalname.slice(0, -4);
     const fileExtName = extname(file.originalname);
 
-    callback(null, `${id}_${name}${fileExtName}`);
+    callback(null, `${id}_${Date.now()}_${name}${fileExtName}`);
 };
 
 export const generateThumbAndPreview = (file) => {
