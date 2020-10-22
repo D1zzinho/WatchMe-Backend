@@ -17,8 +17,9 @@ export class UserService {
             .sort({ _id: 1 })
             .select('username email firstname lastname lastLoginDate about permissions');
     }
+
     
-    async create(userDTO: RegisterDTO) {
+    async create(userDTO: RegisterDTO): Promise<any> {
         const { username, password, email } = userDTO;
         const user = await this.userModel.findOne({ username });
         const userByEmail = await this.userModel.findOne({ email });
@@ -41,7 +42,7 @@ export class UserService {
     }
 
 
-    async findByLogin(userDTO: LoginDTO) {
+    async findByLogin(userDTO: LoginDTO): Promise<any> {
         const { username, password } = userDTO;
 
         const user = await this.userModel
@@ -60,19 +61,19 @@ export class UserService {
     }
 
 
-    async findByPayload(payload: Payload) {
-        const { username } = payload;
+    async findByPayload(payload: Payload): Promise<User> {
+        const { username, permissions } = payload;
 
-        return this.userModel.findOne({username});
+        return this.userModel.findOne({username, permissions});
     }
 
 
-    async findByEmail(email: string) {
+    async findByEmail(email: string): Promise<User> {
         return this.userModel.findOne({ email });
     }
 
 
-    sanitizeUser(user: User) {
+    sanitizeUser(user: User): any {
         const sanitized = user.toObject();
         delete sanitized['password'];
         return sanitized;

@@ -8,12 +8,14 @@ import {AuthGuard} from "@nestjs/passport";
 import {
     ApiBadRequestResponse, ApiBearerAuth,
     ApiBody,
-    ApiCreatedResponse, ApiHeader,
+    ApiCreatedResponse,
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
+import {Response} from "express";
 
 @Controller('auth')
 export class AuthController {
+
     constructor(
         private userService: UserService,
         private authService: AuthService,
@@ -40,7 +42,7 @@ export class AuthController {
     @ApiUnauthorizedResponse({ description: 'User cannot be authorized' })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiBody({ type: LoginDTO })
-    async login(@Body() userDTO: LoginDTO) {
+    async login(@Body() userDTO: LoginDTO): Promise<{ user: any, token: string }> {
         const user = await this.userService.findByLogin(userDTO);
         const payload: Payload = {
             username: user.username,
@@ -56,7 +58,7 @@ export class AuthController {
     @ApiCreatedResponse({ description: 'User registered successfully' })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiBody({ type: RegisterDTO, description: 'New user data' })
-    async register(@Body() userDTO: RegisterDTO) {
+    async register(@Body() userDTO: RegisterDTO): Promise<{ user: any, token: string }> {
         const user = await this.userService.create(userDTO);
         const newUserData = {
             permissions: user.permissions,
@@ -80,7 +82,7 @@ export class AuthController {
     @ApiCreatedResponse({ description: 'User validated with token from header' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBody({ schema: { properties: { user: { type: 'string' }, permission: { type: 'number', default: 1, example: 1 }}}, description: 'User username and permissions'})
-    async checkTokenByUsernameAndPermissions(@Body('user') username: string, @Body('permission') permission: number = 1) {
+    async checkTokenByUsernameAndPermissions(@Body('user') username: string, @Body('permission') permission = 1): Promise<boolean> {
         const user: Payload = {
             username: username,
             permissions: permission
@@ -95,7 +97,7 @@ export class AuthController {
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiCreatedResponse({ schema: { properties: { usernameExists: { type: 'boolean' }, emailExists: { type: 'boolean' } } }, description: 'Returns object of two booleans if userdata exists in database' })
     @ApiBody({ schema: { properties: { username: { type: 'string' }, email: { type: 'string' }}}, description: 'User username and email'})
-    async checkIfUsernameOrEmailExists(@Res() res: any, @Body('username') username: string, @Body('email') email: string): Promise<JSON> {
+    async checkIfUsernameOrEmailExists(@Res() res: Response, @Body('username') username: string, @Body('email') email: string): Promise<Response<any>> {
         try {
             const existStatus = {
                 usernameExists: false,
@@ -108,10 +110,10 @@ export class AuthController {
             if (checkUsername !== null) existStatus.usernameExists = true;
             if (checkEmail !== null) existStatus.emailExists = true;
 
-            return await res.json(existStatus);
+            return res.json(existStatus);
         }
         catch (err) {
-            return await res.json({
+            return res.json({
                 message: err.message
             })
         }
