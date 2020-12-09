@@ -1,13 +1,13 @@
-import {Body, Controller, Get, Post, Res, UseGuards} from "@nestjs/common";
+import {Controller, Get, Req, Res, UseGuards} from "@nestjs/common";
 import {UserService} from "./users.service";
 import {AuthGuard} from "@nestjs/passport";
 import {
     ApiBadRequestResponse,
-    ApiBearerAuth, ApiCreatedResponse,
+    ApiBearerAuth,
     ApiOkResponse,
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
-import {User, UserSchema} from "./schemas/user.schema";
+import {User} from "./schemas/user.schema";
 
 @Controller('users')
 export class UsersController {
@@ -35,4 +35,18 @@ export class UsersController {
         }
     }
 
+
+    @Get('/me')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async getUser(@Req() req: any): Promise<User> {
+        try {
+            const user = req.user;
+            console.log(user)
+            return await this.userService.findById(user._id);
+        }
+        catch (err) {
+            return err.message;
+        }
+    }
 }

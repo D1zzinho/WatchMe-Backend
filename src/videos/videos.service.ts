@@ -66,7 +66,8 @@ export class VideosService {
                     'cover': '$videos.cover',
                     'visits': '$videos.visits',
                     'stat': '$videos.stat',
-                    'author': '$username'
+                    'author': '$username',
+                    'authorAvatar': '$avatar'
                 }
             }
         ]);

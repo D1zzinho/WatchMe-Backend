@@ -79,6 +79,11 @@ export class UserService {
     }
 
 
+    async findById(userId: string): Promise<User> {
+        return this.userModel.findById(userId).select('username firstname lastname permissions avatar about');
+    }
+
+
     async findByPayload(payload: Payload): Promise<User> {
         const { username, permissions } = payload;
 

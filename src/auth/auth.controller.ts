@@ -174,15 +174,8 @@ export class AuthController {
                 await this.userService.createGitHubClient(gitHubUser);
 
                 const signedToken = await this.authService.signGitHubPayload(jwtData);
-                //req.session.accessToken = accessToken;
-                //req.session.gitHubId = user.id;
+
                 res.redirect('http://localhost:4200/?token=' + signedToken);
-                // res.json({
-                //     success: true,
-                //     accessToken: accessToken,
-                //     user: user.login,
-                //     expiresIn: expiresIn
-                // });
             } else {
                 res.json({success: false, message: "Login did not succeed!"});
             }
@@ -198,16 +191,14 @@ export class AuthController {
 
     @Post('/github/me')
     async getGitHubUserData(@Body() tokenData: any): Promise<any> {
-        //console.log(tokenData)
         return await this.authService.getGitHubUser(tokenData);
     }
 
 
     @Get('/logout')
     logOut(@Req() req: Request, @Res() res: Response): void {
-        //if (req.session) req.session = null;
+        if (req.session) req.session = null;
         req.logout();
-        //console.log(req.session);
         res.redirect('http://localhost:4200/')
     }
 }

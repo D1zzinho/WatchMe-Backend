@@ -45,6 +45,10 @@ export class User extends Document {
     @Prop({ default: Date.now() })
     @ApiProperty({ description: 'User last login date' })
     lastLoginDate: Date;
+
+    @Prop({ default: '' })
+    @ApiProperty({ description: 'User avatar' })
+    avatar: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
