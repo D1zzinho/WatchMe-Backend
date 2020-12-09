@@ -5,17 +5,23 @@ import { AppService } from './app.service';
 import { VideosModule } from "./videos/videos.module";
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import {ConfigModule} from "@nestjs/config";
+import {PassportModule} from "@nestjs/passport";
+import { CommentsModule } from './comments/comments.module';
 
 @Module({
     imports: [
-        MongooseModule.forRoot('mongodb://localhost/watchMe', {
+        PassportModule.register({ session: true }),
+        ConfigModule.forRoot(),
+        MongooseModule.forRoot(process.env.DB, {
             useNewUrlParser: true,
             useFindAndModify: false
         }),
         VideosModule,
         AuthModule,
-        UsersModule
-    ],
+        UsersModule,
+        CommentsModule
+],
     controllers: [AppController],
     providers: [AppService],
 })

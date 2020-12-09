@@ -12,15 +12,28 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: any, done: VerifiedCallback) {
-        const user = await this.authService.validateUser(payload);
-        if (!user) {
-            return done(
-                new HttpException('Unauthorized access', HttpStatus.UNAUTHORIZED),
-                false,
-            );
-        }
+    async validate(payload: any, done: VerifiedCallback): Promise<void> {
+        if (payload.username) {
+            const user = await this.authService.validateUser(payload);
+            if (!user) {
+                return done(
+                    new HttpException('Unauthorized access', HttpStatus.UNAUTHORIZED),
+                    false,
+                );
+            }
 
-        return done(null, { _id: user._id, username: user.username, permissions: user.permissions, email: user.email }, payload.iat);
+            return done(null, { _id: user._id, username: user.username, permissions: user.permissions, email: user.email }, payload.iat);
+        }
+        else {
+            const user = await this.authService.getGitHubUser(payload);
+            if (!user) {
+                return done(
+                    new HttpException('Unauthorized access', HttpStatus.UNAUTHORIZED),
+                    false,
+                );
+            }
+
+            return done(null, { username: user.login, type: 'github' });
+        }
     }
 }

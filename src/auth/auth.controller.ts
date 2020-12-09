@@ -1,17 +1,18 @@
-import {Body, Controller, Post, Res, UseGuards} from '@nestjs/common';
+import {Body, Controller, Get, Post, Req, Res, UseGuards} from '@nestjs/common';
 
-import { UserService } from '../users/users.service';
-import { Payload } from '../types/payload';
-import { LoginDTO, RegisterDTO } from './auth.dto';
-import { AuthService } from './auth.service';
+import {UserService} from '../users/users.service';
+import {Payload} from '../types/payload';
+import {LoginDTO, RegisterDTO, SaveGitHubUserDTO} from './auth.dto';
+import {AuthService} from './auth.service';
 import {AuthGuard} from "@nestjs/passport";
 import {
-    ApiBadRequestResponse, ApiBearerAuth,
+    ApiBadRequestResponse,
+    ApiBearerAuth,
     ApiBody,
     ApiCreatedResponse,
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
-import {Response} from "express";
+import {Request, Response} from "express";
 
 @Controller('auth')
 export class AuthController {
@@ -117,5 +118,96 @@ export class AuthController {
                 message: err.message
             })
         }
+    }
+
+
+
+    @Get('/github')
+    authByGitHub(@Res() res: Response): void {
+        const redirect_uri = `http://localhost:3000/auth/github/callback`;
+
+        const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${redirect_uri}`;
+
+        res.redirect(url);
+    }
+
+
+    @Get('/github/callback')
+    async authByGitHubCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
+        try {
+            const code = req.query.code;
+
+            if (!code) {
+                res.send({
+                    success: false,
+                    message: 'Error: no code'
+                })
+            }
+
+            const token =
+                await this.authService.getAccessToken(
+                    {
+                        code,
+                        client_id: process.env.GITHUB_CLIENT_ID,
+                        client_secret: process.env.GITHUB_CLIENT_SECRET
+                    });
+
+
+            const user = await this.authService.getGitHubUser(token);
+
+            if (user) {
+                const jwtData = {
+                    user: user,
+                    permissions: 1,
+                    token
+                };
+
+                const gitHubUser: SaveGitHubUserDTO = {
+                    about: user.bio == null ? "" : user.bio,
+                    email: user.email == null ? "" : user.email,
+                    name: user.name == null ? "" : user.name,
+                    url: user.html_url,
+                    avatar: user.avatar_url,
+                    username: user.login
+                };
+
+                await this.userService.createGitHubClient(gitHubUser);
+
+                const signedToken = await this.authService.signGitHubPayload(jwtData);
+                //req.session.accessToken = accessToken;
+                //req.session.gitHubId = user.id;
+                res.redirect('http://localhost:4200/?token=' + signedToken);
+                // res.json({
+                //     success: true,
+                //     accessToken: accessToken,
+                //     user: user.login,
+                //     expiresIn: expiresIn
+                // });
+            } else {
+                res.json({success: false, message: "Login did not succeed!"});
+            }
+        }
+        catch (err) {
+            res.json({
+                success: false,
+                message: err.message
+            })
+        }
+    }
+
+
+    @Post('/github/me')
+    async getGitHubUserData(@Body() tokenData: any): Promise<any> {
+        //console.log(tokenData)
+        return await this.authService.getGitHubUser(tokenData);
+    }
+
+
+    @Get('/logout')
+    logOut(@Req() req: Request, @Res() res: Response): void {
+        //if (req.session) req.session = null;
+        req.logout();
+        //console.log(req.session);
+        res.redirect('http://localhost:4200/')
     }
 }

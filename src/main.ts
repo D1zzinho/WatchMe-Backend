@@ -2,11 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import {NestExpressApplication} from "@nestjs/platform-express";
 import {DocumentBuilder, SwaggerModule} from "@nestjs/swagger";
+import session from 'cookie-session';
+
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.useStaticAssets('./public');
+  app.enableCors();
+
+  app.use(
+      session({
+        secret: process.env.COOKIE_SECRET,
+      })
+  );
 
   const options = new DocumentBuilder()
       .setTitle('WatchMe API')
@@ -19,6 +28,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('/', app, document);
 
-  await app.listen(3000);
+  await app.listen(parseInt(process.env.PORT, 10) || 3000);
 }
 bootstrap();

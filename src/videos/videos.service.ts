@@ -1,15 +1,14 @@
-import {Types, Model, MongooseUpdateQuery} from 'mongoose';
+import {Types, Model} from 'mongoose';
 import {Injectable, NotFoundException} from '@nestjs/common';
 import {InjectModel} from '@nestjs/mongoose';
 import {Video} from "./schemas/video.schema";
 import {User} from "../users/schemas/user.schema";
-import {AuthService} from "../auth/auth.service";
 import {UpdateVideoResponseSchema} from "./schemas/updateVideoResponse.schema";
 
 
 @Injectable()
 export class VideosService {
-    constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>, @InjectModel(User.name) private readonly userModel: Model<User>, private authService: AuthService) {}
+    constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>, @InjectModel(User.name) private readonly userModel: Model<User>) {}
 
 
     async findAll(): Promise<Video[]> {

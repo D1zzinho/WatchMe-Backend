@@ -41,7 +41,7 @@ export class VideosController {
     @ApiOkResponse({ schema: { type: 'object', properties: { pages: { type: 'object', example: {}}, videosOnPage: { type: 'array', example: []} } }, description: 'Videos with pagination' })
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
-    async getAllVideosWithPagination(@Res() res: any, @Query('page') pageParam: any): Promise<JSON> {
+    async getAllVideosWithPagination(@Res() res: Response, @Query('page') pageParam: any): Promise<Response<JSON>> {
         try {
             const videos = await this.videosService.findAll();
 
@@ -55,7 +55,26 @@ export class VideosController {
             return await res.json({ pages, videosOnPage });
         }
         catch (err) {
-            return await res.json({
+            return res.json({
+                message: err.message
+            });
+        }
+    }
+
+
+    @Get('/all')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    @ApiOkResponse({ type: [Video], description: 'All videos' })
+    @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
+    async getAllVideos(@Res() res: Response): Promise<Response<Video[]>> {
+        try {
+            const videos = await this.videosService.findAll();
+            return res.json(videos);
+        }
+        catch (err) {
+            return res.json({
                 message: err.message
             });
         }
@@ -69,7 +88,7 @@ export class VideosController {
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiQuery({ name: 'limit', type: Number })
-    async getLatestVideos(@Res() res: Response, @Query('limit') limit: number = 10): Promise<Response<Video[]>> {
+    async getLatestVideos(@Res() res: Response, @Query('limit') limit = 10): Promise<Response<Video[]>> {
         try {
             const videos = await this.videosService.getLatest(limit);
 
@@ -99,7 +118,7 @@ export class VideosController {
             let pages: any = null;
             let videosOnPage: Array<Video> = null;
             let message: string;
-            let found: boolean = false;
+            let found = false;
 
             if (query !== '') {
                 videos = await this.videosService.searchVideosByQuery(query);

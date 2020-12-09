@@ -3,13 +3,17 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
 
-import { LoginDTO, RegisterDTO } from '../auth/auth.dto';
+import { LoginDTO, RegisterDTO, SaveGitHubUserDTO } from '../auth/auth.dto';
 import { Payload } from '../types/payload';
 import { User } from "./schemas/user.schema";
+import {GitHubUser} from "./schemas/gitHubUser.schema";
 
 @Injectable()
 export class UserService {
-    constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+    constructor(
+        @InjectModel(User.name) private userModel: Model<User>,
+        @InjectModel(GitHubUser.name) private gitHubUserModel: Model<GitHubUser>
+    ) {}
 
     async getAll(): Promise<User[]> {
         return this.userModel
@@ -39,6 +43,20 @@ export class UserService {
         const createdUser = new this.userModel({ username: username, password: hashedPassword, email: email });
         await createdUser.save();
         return this.sanitizeUser(createdUser);
+    }
+
+
+    async createGitHubClient(gitHubUserDto: SaveGitHubUserDTO): Promise<GitHubUser> {
+        const { username } = gitHubUserDto;
+        const gitHubUser = await this.gitHubUserModel.findOne({ username });
+
+        if (gitHubUser === null) {
+            const savedUser = new this.gitHubUserModel(gitHubUserDto);
+            await savedUser.save();
+            return savedUser;
+        }
+
+        return null;
     }
 
 

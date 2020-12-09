@@ -36,6 +36,10 @@ export class Video extends Document {
     @Prop({ required: true })
     @ApiProperty({ description: 'Video publication status' })
     stat: number;
+
+    @Prop({ default: Date.now() })
+    @ApiProperty({ description: 'Video upload datetime' })
+    uploadDate: Date;
 }
 
 
