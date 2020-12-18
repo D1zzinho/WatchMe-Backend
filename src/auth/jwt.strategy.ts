@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(payload: any, done: VerifiedCallback): Promise<void> {
-        if (payload.username) {
+        if (!payload.type) {
             const user = await this.authService.validateUser(payload);
             if (!user) {
                 return done(
@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 );
             }
 
-            return done(null, { _id: user._id, username: user.username, permissions: user.permissions, email: user.email }, payload.iat);
+            return done(null, { _id: user._id, username: user.username, permissions: user.permissions, avatar: user.avatar, email: user.email }, payload.iat);
         }
         else {
             const user = await this.authService.getGitHubUser(payload);
@@ -33,7 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 );
             }
 
-            return done(null, { username: user.login, type: 'github' });
+            return done(null, { username: user.login, avatar: user.avatar_url, type: 'github' });
         }
     }
 }

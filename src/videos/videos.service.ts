@@ -4,15 +4,20 @@ import {InjectModel} from '@nestjs/mongoose';
 import {Video} from "./schemas/video.schema";
 import {User} from "../users/schemas/user.schema";
 import {UpdateVideoResponseSchema} from "./schemas/updateVideoResponse.schema";
+import {GitHubUser} from "../users/schemas/gitHubUser.schema";
 
 
 @Injectable()
 export class VideosService {
-    constructor(@InjectModel(Video.name) private readonly videoModel: Model<Video>, @InjectModel(User.name) private readonly userModel: Model<User>) {}
+    constructor(
+        @InjectModel(Video.name) private readonly videoModel: Model<Video>,
+        @InjectModel(User.name) private readonly userModel: Model<User>,
+        @InjectModel(GitHubUser.name) private readonly gitHubUserModel: Model<GitHubUser>
+    ) {}
 
 
     async findAll(): Promise<Video[]> {
-        return this.userModel.aggregate([
+        const aggregation = [
             {
                 '$unwind': {
                     'path': '$videos',
@@ -31,19 +36,27 @@ export class VideosService {
                     'cover': '$videos.cover',
                     'visits': '$videos.visits',
                     'stat': '$videos.stat',
+                    'uploadDate': '$videos.uploadDate',
                     'author': '$username'
                 }
             }, {
                 '$sort': {
-                    'id': -1
+                    'uploadDate': -1
                 }
             }
-        ]);
+        ];
+
+        const userVideos = await this.userModel.aggregate(aggregation);
+        const gitHubUserVideos = await this.gitHubUserModel.aggregate(aggregation);
+
+        let videos = userVideos.concat(gitHubUserVideos);
+        videos = videos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
+        return videos;
     }
 
 
     async findVideo(id: string): Promise<Video[]> {
-        const video = this.userModel.aggregate([
+        const aggregation = [
             {
                 '$unwind': {
                     'path': '$videos',
@@ -67,12 +80,18 @@ export class VideosService {
                     'visits': '$videos.visits',
                     'stat': '$videos.stat',
                     'author': '$username',
-                    'authorAvatar': '$avatar'
+                    'authorAvatar': '$avatar',
+                    'uploadDate':'$videos.uploadDate'
                 }
             }
-        ]);
+        ];
 
-        if (video[0] === null) {
+        const userVideo = await this.userModel.aggregate(aggregation);
+        const gitHubUserVideo = await this.gitHubUserModel.aggregate(aggregation)
+
+        const video = userVideo.concat(gitHubUserVideo)
+
+        if (video[0] == null) {
             throw new NotFoundException('Video not found!');
         }
 
@@ -81,7 +100,7 @@ export class VideosService {
 
 
     async getLatest(limit: number): Promise<Video[]> {
-        return this.userModel.aggregate([
+        const aggregation = [
             {
                 '$unwind': {
                     'path': '$videos',
@@ -100,16 +119,22 @@ export class VideosService {
                     'cover': '$videos.cover',
                     'visits': '$videos.visits',
                     'stat': '$videos.stat',
+                    'uploadDate': '$videos.uploadDate',
                     'author': '$username'
                 }
             }, {
                 '$sort': {
-                    'id': -1
+                    'uploadDate': -1
                 }
-            }, {
-                '$limit': Number(limit)
             }
-        ]);
+        ];
+
+        const userVideos = await this.userModel.aggregate(aggregation);
+        const gitHubUserVideos = await this.gitHubUserModel.aggregate(aggregation);
+        let latestVideos = userVideos.concat(gitHubUserVideos);
+        latestVideos = latestVideos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
+        latestVideos = latestVideos.slice(0,limit);
+        return latestVideos
     }
 
 
@@ -134,7 +159,8 @@ export class VideosService {
                 'cover': '$videos.cover',
                 'visits': '$videos.visits',
                 'stat': '$videos.stat',
-                'author': '$username'
+                'author': '$username',
+                'uploadDate':'$videos.uploadDate'
             }
         });
 
@@ -192,18 +218,24 @@ export class VideosService {
             });
         }
 
-        matchingQuery.push({
-            '$sort': {
-                'id': -1
-            }
-        })
+        // matchingQuery.push({
+        //     '$sort': {
+        //         'id': -1
+        //     }
+        // })
 
-        return this.userModel.aggregate(matchingQuery);
+        const userVideos = await this.userModel.aggregate(matchingQuery);
+        const gitHubUserVideos = await this.gitHubUserModel.aggregate(matchingQuery);
+
+        let allVideos = userVideos.concat(gitHubUserVideos);
+        allVideos = allVideos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
+
+        return allVideos;
     }
 
 
     async findSimilarVideos(id: string): Promise<Array<Video>> {
-        const tagsFromSelectedVideo = await this.userModel.aggregate([
+        const aggregation = [
             {
                 '$unwind': {
                     'path': '$videos',
@@ -220,8 +252,19 @@ export class VideosService {
                     'tags': '$videos.tags'
                 }
             }
-        ]);
-        const tags = tagsFromSelectedVideo[0].tags;
+        ];
+
+        let tags;
+
+        const tagsFromSelectedVideo = await this.userModel.aggregate(aggregation);
+        if (tagsFromSelectedVideo[0]) {
+            tags = tagsFromSelectedVideo[0].tags;
+        }
+        else {
+            const tagsFromGitHubVideo = await this.gitHubUserModel.aggregate(aggregation);
+            tags = tagsFromGitHubVideo[0].tags
+        }
+
 
         const matchingQuery = new Array<Object>();
         const insideQuery = new Array<Object>();
@@ -273,7 +316,10 @@ export class VideosService {
             }
         });
 
-        return this.userModel.aggregate(matchingQuery);
+        const videos = await this.userModel.aggregate(matchingQuery);
+        const gitHubVideos = await this.gitHubUserModel.aggregate(matchingQuery);
+
+        return videos.concat(gitHubVideos);
     }
 
 
@@ -318,14 +364,20 @@ export class VideosService {
     }
 
 
-    async addVideo(video: Video, id: string): Promise<Object> {
+    async addVideo(video: Video, id: string, type: string): Promise<Object> {
         try {
             const newVideo = new this.videoModel(video);
 
-            await this.userModel.findByIdAndUpdate(id, { $push: { videos: newVideo } });
+            if (type == null) {
+                await this.userModel.findByIdAndUpdate(id, { $push: { videos: newVideo } });
+            }
+            else {
+                await this.gitHubUserModel.findOneAndUpdate({ username: id }, { $push: { videos: newVideo }});
+            }
 
             return {
                 added: true,
+                video: newVideo,
                 message: 'Video uploaded successfully!'
             }
 
@@ -457,6 +509,31 @@ export class VideosService {
             }
         }
     }
+
+
+    // async updateDate(videoId: string): Promise<void> {
+    //     const aggregation = [
+    //         {
+    //             '$unwind': {
+    //                 'path': '$videos',
+    //                 'includeArrayIndex': 'id',
+    //                 'preserveNullAndEmptyArrays': true
+    //             }
+    //         }, {
+    //             '$match': {
+    //                 'videos._id': Types.ObjectId(videoId)
+    //             }
+    //         }
+    //         ];
+    //     const userVideo = await this.userModel.aggregate(aggregation);
+    //
+    //     if (userVideo[0] != undefined) {
+    //         await this.userModel.updateOne({ 'videos._id': Types.ObjectId(videoId) }, { $set: { 'videos.$.uploadDate': new Date('2020-08-08') } });
+    //     }
+    //     else {
+    //         await this.gitHubUserModel.updateOne({ 'videos._id': Types.ObjectId(videoId) }, { $set: { 'videos.$.uploadDate': new Date('2020-08-08') } });
+    //     }
+    // }
 
 
     removeAllWithWantedName(arr, value): Promise<Array<Video>> {

@@ -15,7 +15,8 @@ export class AuthService {
 
     async signGitHubPayload(payload: any): Promise<string> {
         const jwtData = {
-            user: payload.user.login,
+            username: payload.user.login,
+            type: 'github',
             permissions: payload.permissions,
             access_token: payload.token.access_token
         };

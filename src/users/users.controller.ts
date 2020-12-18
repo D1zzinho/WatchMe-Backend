@@ -42,7 +42,6 @@ export class UsersController {
     async getUser(@Req() req: any): Promise<User> {
         try {
             const user = req.user;
-            console.log(user)
             return await this.userService.findById(user._id);
         }
         catch (err) {

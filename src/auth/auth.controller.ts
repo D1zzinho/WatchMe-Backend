@@ -190,7 +190,7 @@ export class AuthController {
 
 
     @Post('/github/me')
-    async getGitHubUserData(@Body() tokenData: any): Promise<any> {
+    async getGitHubUserData(@Req() req: any, @Body() tokenData: any): Promise<any> {
         return await this.authService.getGitHubUser(tokenData);
     }
 

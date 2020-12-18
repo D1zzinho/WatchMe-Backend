@@ -202,8 +202,8 @@ export class VideosController {
         @Req() req: Request,
         @UploadedFile() file: any,
         @Body('video') newVideo: string,
-        @Res() res: any
-    ): Promise<JSON> {
+        @Res() res: Response
+    ): Promise<Response> {
         if (file !== undefined) {
             let data = null;
 
@@ -216,7 +216,17 @@ export class VideosController {
             newVideoData.tags = tagsTrimmed;
 
             const user = <User> req.user;
-            const id = user._id;
+            let id;
+            let type;
+            if (user['type']) {
+                id = user['username']
+                type = user['type']
+            }
+            else {
+                id = user._id;
+                type = null
+            }
+
 
             const newPath = `uploads/${file.filename}`;
             const newCoverPath = `uploads/${file.filename.slice(0,-4)}.png`;
@@ -227,11 +237,12 @@ export class VideosController {
             newVideoData.thumb = newThumbPath;
 
 
-            const saveVideoInDatabase = await this.videosService.addVideo(newVideoData, id).then(res => data = res);
-
-            if (data.added === true) { generateThumbAndPreview(file.filename); }
+            const saveVideoInDatabase = await this.videosService.addVideo(newVideoData, id, type).then(res => data = res);
+            let conversion;
+            if (data.added === true) { conversion = await generateThumbAndPreview(file.filename); }
 
             return res.json({
+                conversion,
                 file: file,
                 saved: saveVideoInDatabase,
                 uploaded: true
