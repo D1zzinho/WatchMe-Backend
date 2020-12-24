@@ -139,7 +139,7 @@ export class VideosService {
 
 
     async searchVideosByQuery(query: string): Promise<Video[]> {
-        const matchingQuery = new Array<Object>();
+        const matchingQuery = new Array<any>();
         matchingQuery.push({
             '$unwind': {
                 'path': '$videos',
@@ -164,9 +164,9 @@ export class VideosService {
             }
         });
 
-        const titleQuery = new Array<Object>();
-        const descQuery = new Array<Object>();
-        const tagsQuery = new Array<Object>();
+        const titleQuery = new Array<any>();
+        const descQuery = new Array<any>();
+        const tagsQuery = new Array<any>();
 
         const words = query.split(' ');
         if (words.length > 0) {
@@ -266,8 +266,8 @@ export class VideosService {
         }
 
 
-        const matchingQuery = new Array<Object>();
-        const insideQuery = new Array<Object>();
+        const matchingQuery = new Array<any>();
+        const insideQuery = new Array<any>();
 
         matchingQuery.push({
             '$unwind': {
@@ -364,7 +364,7 @@ export class VideosService {
     }
 
 
-    async addVideo(video: Video, id: string, type: string): Promise<Object> {
+    async addVideo(video: Video, id: string, type: string): Promise<any> {
         try {
             const newVideo = new this.videoModel(video);
 
@@ -393,23 +393,24 @@ export class VideosService {
 
     async deleteVideo(id: string): Promise<{ deleted: boolean, message: string }> {
         try {
-            const deleteVideo = await this.userModel.findOneAndUpdate({
-                'videos._id': Types.ObjectId(id)
-            }, {
-                $pull: { 'videos': { '_id': Types.ObjectId(id) } }
-            });
+            const user = await this.checkIfVideoIsUploadedByClassicUser(id);
 
-            if (deleteVideo) {
-                return {
-                    deleted: true,
-                    message: 'Video deleted successfully!'
-                }
+            if (user) {
+                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, {
+                    $pull: { 'videos': { '_id': Types.ObjectId(id) } }
+                });
             }
             else {
-                return {
-                    deleted: false,
-                    message: 'Video deleting error!'
-                }
+                await this.gitHubUserModel.updateOne({
+                    'videos._id': Types.ObjectId(id)
+                }, {
+                    $pull: { 'videos': { '_id': Types.ObjectId(id) } }
+                });
+            }
+
+            return {
+                deleted: true,
+                message: 'Video deleted successfully!'
             }
         }
         catch (err) {
@@ -421,9 +422,16 @@ export class VideosService {
     }
 
 
-    async updateViews(id: string): Promise<Object> {
+    async updateViews(id: string): Promise<{ updated: boolean, message: string }> {
         try {
-            await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
+            const user = await this.checkIfVideoIsUploadedByClassicUser(id);
+
+            if (user) {
+                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
+            }
+            else {
+                await this.gitHubUserModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $inc: { 'videos.$.visits': 1 } });
+            }
 
             return {
                 updated: true,
@@ -439,59 +447,100 @@ export class VideosService {
     }
 
 
-    async updateTitle(id: string, title: string): Promise<Object> {
-        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.title': title}});
+    async updateTitle(id: string, title: string): Promise<any> {
+        const user = await this.checkIfVideoIsUploadedByClassicUser(id);
+
+        if (user) {
+            return this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, {$set: {'videos.$.title': title}});
+        }
+        else {
+            return this.gitHubUserModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.title': title}});
+        }
     }
 
 
-    async updateDesc(id: string, desc: string): Promise<Object> {
-        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.desc': desc}});
+    async updateDesc(id: string, desc: string): Promise<any> {
+        const user = await this.checkIfVideoIsUploadedByClassicUser(id);
+
+        if (user) {
+            return this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, {$set: {'videos.$.desc': desc}});
+        }
+        else {
+            return this.gitHubUserModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.desc': desc}});
+        }
     }
 
 
-    async updateTags(id: string, tags: Array<string>): Promise<Object> {
-        return this.userModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.tags': tags}});
+    async updateTags(id: string, tags: Array<string>): Promise<any> {
+        const user = await this.checkIfVideoIsUploadedByClassicUser(id);
+
+        if (user) {
+            return this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, {$set: {'videos.$.tags': tags}});
+        }
+        else {
+            return this.gitHubUserModel.updateOne({'videos._id': Types.ObjectId(id)}, {$set: {'videos.$.tags': tags}});
+        }
     }
 
 
     async updateStat(id: string): Promise<UpdateVideoResponseSchema> {
-        let message;
-        const video = await this.userModel.aggregate([
-                {
-                    '$unwind': {
-                        'path': '$videos',
-                        'preserveNullAndEmptyArrays': true
-                    }
-                }, {
-                    '$match': {
-                        'videos._id': Types.ObjectId(id)
-                    }
-                }, {
-                    '$project': {
-                        '_id': 0,
-                        'id': '$videos._id',
-                        'title': '$videos.title',
-                        'desc': '$videos.desc',
-                        'tags': '$videos.tags',
-                        'path': '$videos.path',
-                        'thumb': '$videos.thumb',
-                        'cover': '$videos.cover',
-                        'visits': '$videos.visits',
-                        'stat': '$videos.stat',
-                        'author': '$username'
-                    }
+        const user = await this.checkIfVideoIsUploadedByClassicUser(id);
+        const aggregation = [
+            {
+                '$unwind': {
+                    'path': '$videos',
+                    'preserveNullAndEmptyArrays': true
                 }
-            ]);
+            }, {
+                '$match': {
+                    'videos._id': Types.ObjectId(id)
+                }
+            }, {
+                '$project': {
+                    '_id': 0,
+                    'id': '$videos._id',
+                    'title': '$videos.title',
+                    'desc': '$videos.desc',
+                    'tags': '$videos.tags',
+                    'path': '$videos.path',
+                    'thumb': '$videos.thumb',
+                    'cover': '$videos.cover',
+                    'visits': '$videos.visits',
+                    'stat': '$videos.stat',
+                    'author': '$username',
+                    'authorAvatar': '$avatar'
+                }
+            }
+        ];
+        let video;
+        let message;
+
+        if (user) {
+            video = await this.userModel.aggregate(aggregation);
+        }
+        else {
+            video = await this.gitHubUserModel.aggregate(aggregation);
+        }
 
         if (video.length > 0) {
             const currentStat = Number(video[0].stat);
 
             if (currentStat === 1) {
-                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                if (user) {
+                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                }
+                else {
+                    await this.gitHubUserModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 0 } });
+                }
                 message = 'Video publication status successfully changed to private!';
             }
             else {
-                await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                if (user) {
+                    await this.userModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                }
+                else {
+                    await this.gitHubUserModel.updateOne({ 'videos._id': Types.ObjectId(id) }, { $set: { 'videos.$.stat': 1 } });
+                }
                 message = 'Video publication status successfully changed to public!';
             }
 
@@ -536,7 +585,7 @@ export class VideosService {
     // }
 
 
-    removeAllWithWantedName(arr, value): Promise<Array<Video>> {
+    removeAllWithWantedName(arr: any, value: any): Promise<Array<Video>> {
         let i = 0;
         while (i < arr.length) {
             if (arr[i].id.toString() === value) {
@@ -549,4 +598,13 @@ export class VideosService {
         return arr;
     }
 
+
+    private checkIfVideoIsUploadedByClassicUser(videoId: string) {
+        try {
+            return this.userModel.findOne({'videos._id': Types.ObjectId(videoId)}).select('username');
+        }
+        catch (err) {
+            return null;
+        }
+    }
 }

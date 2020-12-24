@@ -1,4 +1,4 @@
-import {Controller, Get, Req, Res, UseGuards} from "@nestjs/common";
+import {Controller, Get, HttpService, Req, Res, UseGuards} from "@nestjs/common";
 import {UserService} from "./users.service";
 import {AuthGuard} from "@nestjs/passport";
 import {
@@ -8,6 +8,7 @@ import {
     ApiUnauthorizedResponse
 } from "@nestjs/swagger";
 import {User} from "./schemas/user.schema";
+import {Request} from "express";
 
 @Controller('users')
 export class UsersController {
@@ -39,13 +40,29 @@ export class UsersController {
     @Get('/me')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    async getUser(@Req() req: any): Promise<User> {
+    async getUser(@Req() req: Request): Promise<User> {
         try {
             const user = req.user;
-            return await this.userService.findById(user._id);
+            return await this.userService.findById(user['_id']);
         }
         catch (err) {
             return err.message;
         }
+    }
+
+
+    @Get('/github/repos')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async getGutHubUserRepos(@Req() req: Request): Promise<any> {
+        return await this.userService.getGitHubUserRepos(req.user);
+    }
+
+
+    @Get('/github/videos')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async getGitHubUserVideosAndComments(@Req() req: Request): Promise<any> {
+        return await this.userService.getGitHubUserVideos(req.user['username']);
     }
 }

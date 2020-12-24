@@ -21,7 +21,7 @@ export class AuthService {
             access_token: payload.token.access_token
         };
 
-        const exp = Math.round(payload.token.expires_in / 3600) + 'h';
+        const exp = '8h';
 
         return sign(jwtData, 'secretKey', { expiresIn: exp });
     }
@@ -37,12 +37,9 @@ export class AuthService {
                 client_id,
                 client_secret,
                 code
-            }).toPromise();
+            }, { headers: { accept: 'application/json' } }).toPromise();
 
-            const data = request.data;
-            return JSON.parse('{"' + data.replace(/&/g, '","').replace(/=/g, '":"') + '"}', function (key, value) {
-                return key === "" ? value : decodeURIComponent(value)
-            });
+            return request.data;
         }
         catch (err) {
             console.log(err);

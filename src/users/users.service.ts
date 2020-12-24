@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {HttpException, HttpService, HttpStatus, Injectable} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
@@ -12,7 +12,8 @@ import {GitHubUser} from "./schemas/gitHubUser.schema";
 export class UserService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
-        @InjectModel(GitHubUser.name) private gitHubUserModel: Model<GitHubUser>
+        @InjectModel(GitHubUser.name) private gitHubUserModel: Model<GitHubUser>,
+        private http: HttpService
     ) {}
 
     async getAll(): Promise<User[]> {
@@ -80,7 +81,7 @@ export class UserService {
 
 
     async findById(userId: string): Promise<User> {
-        return this.userModel.findById(userId).select('username firstname lastname permissions avatar about');
+        return this.userModel.findById(userId).select('email username firstname lastname permissions avatar about videos comments');
     }
 
 
@@ -100,5 +101,25 @@ export class UserService {
         const sanitized = user.toObject();
         delete sanitized['password'];
         return sanitized;
+    }
+
+
+    async getGitHubUserRepos(user: any): Promise<any> {
+        try {
+            const request = await this.http.get(`https://api.github.com/user/repos`, {
+                headers: {
+                    Authorization: `token ${user['access_token']}`
+                }
+            }).toPromise();
+
+            return request.data;
+        }
+        catch (err) {
+            return err.message;
+        }
+    }
+
+    async getGitHubUserVideos(gitHubUserUsername: string): Promise<any> {
+        return this.gitHubUserModel.findOne({ username: gitHubUserUsername }).select('videos comments');
     }
 }

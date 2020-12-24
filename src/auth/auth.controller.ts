@@ -124,9 +124,7 @@ export class AuthController {
 
     @Get('/github')
     authByGitHub(@Res() res: Response): void {
-        const redirect_uri = `http://localhost:3000/auth/github/callback`;
-
-        const url = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${redirect_uri}`;
+        const url = `https://github.com/login/oauth/authorize?scope=user%20repo&client_id=${process.env.GITHUB_CLIENT_ID}`;
 
         res.redirect(url);
     }
@@ -149,7 +147,7 @@ export class AuthController {
                     {
                         code,
                         client_id: process.env.GITHUB_CLIENT_ID,
-                        client_secret: process.env.GITHUB_CLIENT_SECRET
+                        client_secret: process.env.GITHUB_CLIENT_SECRET,
                     });
 
 
@@ -175,8 +173,9 @@ export class AuthController {
 
                 const signedToken = await this.authService.signGitHubPayload(jwtData);
 
-                res.redirect('http://localhost:4200/?token=' + signedToken);
+                res.redirect('http://192.168.100.10:4200/login?token=' + signedToken);
             } else {
+                //TODO res.redirect to oauth error page
                 res.json({success: false, message: "Login did not succeed!"});
             }
         }
@@ -190,7 +189,7 @@ export class AuthController {
 
 
     @Post('/github/me')
-    async getGitHubUserData(@Req() req: any, @Body() tokenData: any): Promise<any> {
+    async getGitHubUserData(@Body() tokenData: any): Promise<any> {
         return await this.authService.getGitHubUser(tokenData);
     }
 
@@ -199,6 +198,6 @@ export class AuthController {
     logOut(@Req() req: Request, @Res() res: Response): void {
         if (req.session) req.session = null;
         req.logout();
-        res.redirect('http://localhost:4200/')
+        res.redirect('http://192.168.100.10:4200/')
     }
 }

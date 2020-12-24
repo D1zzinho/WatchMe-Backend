@@ -33,7 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 );
             }
 
-            return done(null, { username: user.login, avatar: user.avatar_url, type: 'github' });
+            return done(null, { username: user.login, avatar: user.avatar_url, type: 'github', access_token: payload.access_token });
         }
     }
 }
