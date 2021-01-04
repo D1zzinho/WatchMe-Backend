@@ -61,4 +61,24 @@ export class AuthService {
             throw new UnauthorizedException(err);
         }
     }
+
+
+    async getSystemGitHubUser(token: any): Promise<any> {
+        try {
+            const gitHubUserInSystem = await this.userService.findGitHubUserByUsername(token.username);
+
+            const request = await this.http.get("https://api.github.com/user", {
+                headers: {
+                    Authorization: `token ${token.access_token}`
+                }
+            }).toPromise();
+
+            request.data.lastLoginDate = gitHubUserInSystem.lastLoginDate;
+
+            return request.data;
+        }
+        catch (err) {
+            throw new UnauthorizedException(err);
+        }
+    }
 }

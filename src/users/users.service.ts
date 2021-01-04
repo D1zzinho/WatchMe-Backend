@@ -56,6 +56,9 @@ export class UserService {
             await savedUser.save();
             return savedUser;
         }
+        else {
+            await this.updateUserLoginDate(gitHubUser.username, gitHubUser._id, 'github');
+        }
 
         return null;
     }
@@ -81,7 +84,7 @@ export class UserService {
 
 
     async findById(userId: string): Promise<User> {
-        return this.userModel.findById(userId).select('email username firstname lastname permissions avatar about videos comments');
+        return this.userModel.findById(userId).select('email username firstname lastname permissions avatar about videos comments registerDate lastLoginDate');
     }
 
 
@@ -89,6 +92,14 @@ export class UserService {
         const { username, permissions } = payload;
 
         return this.userModel.findOne({username, permissions});
+    }
+
+
+    async findByUsername(username: string): Promise<boolean> {
+        const systemUserCheck = await this.userModel.findOne({ username } );
+        const gitHubUserCheck = await this.gitHubUserModel.findOne({ username });
+
+        return (systemUserCheck !== null) || (gitHubUserCheck !== null);
     }
 
 
@@ -101,6 +112,11 @@ export class UserService {
         const sanitized = user.toObject();
         delete sanitized['password'];
         return sanitized;
+    }
+
+
+    async findGitHubUserByUsername(gitHubUserName: string): Promise<GitHubUser> {
+        return this.gitHubUserModel.findOne({ username: gitHubUserName }).select('username name lastLoginDate');
     }
 
 
@@ -119,7 +135,48 @@ export class UserService {
         }
     }
 
+
     async getGitHubUserVideos(gitHubUserUsername: string): Promise<any> {
         return this.gitHubUserModel.findOne({ username: gitHubUserUsername }).select('videos comments');
+    }
+
+
+    async createGitHubRepo(user: any, repositoryData: any): Promise<any> {
+        try {
+            const request = await this.http.post(`https://api.github.com/user/repos`, repositoryData, {
+                headers: {
+                    Authorization: `token ${user['access_token']}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            }).toPromise();
+
+            return request.data;
+        }
+        catch (err) {
+            return err.message;
+        }
+    }
+
+
+    async updateUserLoginDate(username: string, userId: string, userType: string): Promise<any> {
+        try {
+            if (userType === 'system') {
+                await this.userModel.findOneAndUpdate({ username: username, _id: userId }, { $set: { lastLoginDate: new Date(Date.now()) } });
+            }
+            else if (userType === 'github') {
+                await this.gitHubUserModel.findOneAndUpdate({ username: username, _id: userId }, { $set: { lastLoginDate: new Date(Date.now()) } });
+            }
+
+            return {
+                updated: true,
+                message: 'Last login date successfully updated!'
+            }
+        }
+        catch (err) {
+            return {
+                updated: false,
+                message: err.message
+            }
+        }
     }
 }

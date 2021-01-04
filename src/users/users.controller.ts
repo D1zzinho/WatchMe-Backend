@@ -1,4 +1,4 @@
-import {Controller, Get, HttpService, Req, Res, UseGuards} from "@nestjs/common";
+import {Body, Controller, Get, HttpService, Post, Req, Res, UseGuards} from "@nestjs/common";
 import {UserService} from "./users.service";
 import {AuthGuard} from "@nestjs/passport";
 import {
@@ -64,5 +64,13 @@ export class UsersController {
     @ApiBearerAuth()
     async getGitHubUserVideosAndComments(@Req() req: Request): Promise<any> {
         return await this.userService.getGitHubUserVideos(req.user['username']);
+    }
+
+
+    @Post('/github/repos')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async createGitHubUserRepo(@Req() req: Request, @Body() repositoryData: any): Promise<any> {
+        return await this.userService.createGitHubRepo(req.user, repositoryData);
     }
 }

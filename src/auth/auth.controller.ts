@@ -51,6 +51,7 @@ export class AuthController {
             expiresIn: '12h'
         };
         const token = await this.authService.signPayload(payload);
+        await this.userService.updateUserLoginDate(user.username, user._id, 'system');
         return { user, token };
     }
 
@@ -105,10 +106,10 @@ export class AuthController {
                 emailExists: false
             };
 
-            const checkUsername = await this.userService.findByPayload({ username });
+            const checkUsername = await this.userService.findByUsername(username);
             const checkEmail = await this.userService.findByEmail(email);
 
-            if (checkUsername !== null) existStatus.usernameExists = true;
+            if (checkUsername) existStatus.usernameExists = true;
             if (checkEmail !== null) existStatus.emailExists = true;
 
             return res.json(existStatus);
@@ -136,10 +137,7 @@ export class AuthController {
             const code = req.query.code;
 
             if (!code) {
-                res.send({
-                    success: false,
-                    message: 'Error: no code'
-                })
+                res.redirect(`http://192.168.3.129:4200/login?token=null&error=Code undefined!`);
             }
 
             const token =
@@ -173,24 +171,25 @@ export class AuthController {
 
                 const signedToken = await this.authService.signGitHubPayload(jwtData);
 
-                res.redirect('http://192.168.100.10:4200/login?token=' + signedToken);
+                res.redirect('http://192.168.3.129:4200/login?token=' + signedToken);
             } else {
-                //TODO res.redirect to oauth error page
-                res.json({success: false, message: "Login did not succeed!"});
+                res.redirect(`http://192.168.3.129:4200/login?token=null&error=Login did not succeed!`);
+                //res.json({success: false, message: "Login did not succeed!"});
             }
         }
         catch (err) {
-            res.json({
-                success: false,
-                message: err.message
-            })
+            res.redirect(`http://192.168.3.129:4200/login?token=null&error=${err.message}`);
+            // res.json({
+            //     success: false,
+            //     message: err.message
+            // })
         }
     }
 
 
     @Post('/github/me')
     async getGitHubUserData(@Body() tokenData: any): Promise<any> {
-        return await this.authService.getGitHubUser(tokenData);
+        return await this.authService.getSystemGitHubUser(tokenData);
     }
 
 
@@ -198,6 +197,6 @@ export class AuthController {
     logOut(@Req() req: Request, @Res() res: Response): void {
         if (req.session) req.session = null;
         req.logout();
-        res.redirect('http://192.168.100.10:4200/')
+        res.redirect('http://192.168.3.129:4200/')
     }
 }
