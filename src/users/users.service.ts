@@ -1,11 +1,11 @@
 import {HttpException, HttpService, HttpStatus, Injectable} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import {InjectModel} from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
-import { Model } from 'mongoose';
+import {Model} from 'mongoose';
 
-import { LoginDTO, RegisterDTO, SaveGitHubUserDTO } from '../auth/auth.dto';
-import { Payload } from '../types/payload';
-import { User } from "./schemas/user.schema";
+import {LoginDTO, RegisterDTO, SaveGitHubUserDTO} from '../auth/auth.dto';
+import {Payload} from '../types/payload';
+import {User} from "./schemas/user.schema";
 import {GitHubUser} from "./schemas/gitHubUser.schema";
 
 @Injectable()
@@ -136,8 +136,48 @@ export class UserService {
     }
 
 
+    async getGitHubUserRepoCommits(user: any, repoName: string): Promise<any> {
+        try {
+            const request = await this.http.get(`https://api.github.com/repos/${user['username']}/${repoName}/commits`, {
+                headers: {
+                    Authorization: `token ${user['access_token']}`
+                }
+            }).toPromise();
+
+            const result = request.data;
+            const response = new Array<any>();
+
+            result.forEach(res => {
+                response.push({
+                    author: res.author,
+                    date: res.commit.author.date,
+                    message: res.commit.message
+                });
+            });
+
+            const groups = response.reduce((groups, commit) => {
+                const date = commit.date.split('T')[0];
+                if (!groups[date]) {
+                    groups[date] = [];
+                }
+                groups[date].push(commit);
+                return groups;
+            }, {});
+
+            return Object.keys(groups).map((date) => {
+                return {
+                    date,
+                    commits: groups[date]
+                };
+            });
+        }
+        catch (err) {
+            return err.message;
+        }
+    }
+
     async getGitHubUserVideos(gitHubUserUsername: string): Promise<any> {
-        return this.gitHubUserModel.findOne({ username: gitHubUserUsername }).select('videos comments');
+        return this.gitHubUserModel.findOne({ username: gitHubUserUsername }).select('username videos comments');
     }
 
 

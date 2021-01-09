@@ -208,12 +208,7 @@ export class VideosController {
             let data = null;
 
             const newVideoData = JSON.parse(newVideo);
-            const tags = newVideoData.tags.split(',');
-            const tagsTrimmed = new Array<string>();
-            tags.forEach(tag => {
-                tagsTrimmed.push(tag.trim());
-            });
-            newVideoData.tags = tagsTrimmed;
+
 
             const user = <User> req.user;
             let id;
@@ -261,13 +256,13 @@ export class VideosController {
     @ApiOkResponse({ type: Video, description: 'Selected video by its id' })
     @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
     @ApiBadRequestResponse({ description: 'Bad request' })
-    async getVideo(@Res() res: any, @Param('id') id: string): Promise<JSON> {
+    async getVideo(@Res() res: Response, @Param('id') id: string): Promise<Response> {
         try {
             const video = await this.videosService.findVideo(id);
             return await res.json(video[0]);
         }
         catch (err) {
-            return await res.json({
+            return res.json({
                 err: err.message
             });
         }
@@ -355,15 +350,9 @@ export class VideosController {
     @ApiBadRequestResponse({ description: 'Bad request' })
     @ApiParam({ name: 'id', type: 'string', description: 'ObjectId of video user wants to edit' })
     @ApiBody({ schema: { type: 'object', properties: { tags: { type: 'string' } } }, description: 'New video tags are passed in request body' })
-    async updateTags(@Res() res: Response, @Param('id') id: string, @Body('tags') tags: string): Promise<Response<UpdateVideoResponseSchema>> {
+    async updateTags(@Res() res: Response, @Param('id') id: string, @Body('tags') tags: Array<string>): Promise<Response<UpdateVideoResponseSchema>> {
         try {
-            const tagsArray = tags.split(',');
-            const tagsArrayTrimmed = new Array<string>();
-            tagsArray.forEach(tag => {
-                tagsArrayTrimmed.push(tag.trim());
-            })
-
-            await this.videosService.updateTags(id, tagsArrayTrimmed);
+            await this.videosService.updateTags(id, tags);
 
             return res.json({
                 updated: true,

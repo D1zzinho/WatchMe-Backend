@@ -84,22 +84,33 @@ export class CommentsController {
                 type = null;
             }
 
-            await this.commentsService.addComment(uid, comment, type);
+            const commentsToCurrentVideo = await this.commentsService.findCommentsToVideo(videoId);
+            const currentUserComments = commentsToCurrentVideo.filter((comm: any) => comm.author == user['username']);
+            if (currentUserComments.length >= 3) {
+                return res.json({
+                    added: false,
+                    message: 'You have already commented this video 3 times!',
+                    comment: null
+                });
+            }
+            else {
+                await this.commentsService.addComment(uid, comment, type);
 
-            comment.author = req.user['username'];
-            comment.authorAvatar = req.user['avatar'];
+                comment.author = req.user['username'];
+                comment.authorAvatar = req.user['avatar'];
 
-            return res.json({
-                added: true,
-                message: 'Successfully commented!',
-                comment: comment
-            });
+                return res.json({
+                    added: true,
+                    message: 'Successfully commented!',
+                    comment: comment
+                });
+            }
         }
         catch (err) {
             return res.json({
                 added: false,
                 message: err.message,
-                newComment: null
+                comment: null
             });
         }
     }

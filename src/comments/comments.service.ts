@@ -102,10 +102,13 @@ export class CommentsService {
         const comments = await this.userModel.aggregate(aggregation);
         const gitHubComments = await this.gitHubUserModel.aggregate(aggregation);
 
-        const allComments = comments.concat(gitHubComments);
+        let allComments = comments.concat(gitHubComments);
 
         if (allComments[0] === null) {
             throw new NotFoundException('Comments not found!');
+        }
+        else {
+            allComments = allComments.sort((a,b) => (new Date(b.date).getTime() - new Date(a.date).getTime()));
         }
 
         return allComments;
