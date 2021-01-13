@@ -36,7 +36,7 @@ export class GitHubUser extends Document {
 
     @Prop()
     @ApiProperty({ description: 'GitHub user comments' })
-    comments: Array<any>;
+    comments: Array<Comment>;
 
     @Prop({ default: 1 })
     @ApiProperty({ description: 'GitHub user permissions' })

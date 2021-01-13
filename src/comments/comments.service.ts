@@ -42,7 +42,7 @@ export class CommentsService {
 
 
     async findComment(id: string): Promise<Comment[]> {
-        const comment = this.userModel.aggregate([
+        const aggregation = [
             {
                 '$unwind': {
                     'path': '$comments',
@@ -62,10 +62,16 @@ export class CommentsService {
                     'authorAvatar': '$avatar'
                 }
             }
-        ]);
+        ];
+
+        let comment = await this.userModel.aggregate(aggregation);
+
+        if (comment.length === 0) {
+            comment = await this.gitHubUserModel.aggregate(aggregation);
+        }
 
         if (comment[0] === null) {
-            throw new NotFoundException('Comments not found!');
+            throw new NotFoundException('Comment not found!');
         }
 
         return comment;
@@ -87,6 +93,7 @@ export class CommentsService {
             }, {
                 '$project': {
                     '_id': 0,
+                    'id': '$comments._id',
                     'text': '$comments.text',
                     'date': '$comments.date',
                     'author': '$username',
@@ -123,11 +130,57 @@ export class CommentsService {
             model = this.userModel;
 
             await model.findByIdAndUpdate(user, {$push: {comments: newComment}});
+
+            return newComment;
         }
         else {
             model = this.gitHubUserModel;
 
             await model.findOneAndUpdate({ username: user }, {$push: {comments: newComment}});
+
+            return newComment;
+        }
+    }
+
+
+    async editComment(user: string, commentId: string, newMessage: string): Promise<any> {
+        let model;
+
+        const checkUser = await this.userModel.findOne({ username: user });
+
+        if (checkUser) {
+            model = this.userModel;
+
+            await model.updateOne({ "comments._id": Types.ObjectId(commentId) }, { "$set": { "comments.$.text": newMessage } });
+        }
+        else {
+            model = this.gitHubUserModel;
+
+            await model.updateOne({ "comments._id": Types.ObjectId(commentId) }, { "$set": { "comments.$.text": newMessage } });
+        }
+        // if (userType === null) {
+        //
+        // }
+        // else {
+        //
+        // }
+    }
+
+
+    async deleteComment(user: string, commentId: string): Promise<any> {
+        let model;
+
+        const checkUser = await this.userModel.findOne({ username: user });
+
+        if (checkUser) {
+            model = this.userModel;
+
+            await model.updateOne({ "comments._id": Types.ObjectId(commentId) }, { "$pull": { "comments": { "_id": Types.ObjectId(commentId) } } });
+        }
+        else {
+            model = this.gitHubUserModel;
+
+            await model.updateOne({ "comments._id": Types.ObjectId(commentId) }, { "$pull": { "comments": { "_id": Types.ObjectId(commentId) } } });
         }
     }
 

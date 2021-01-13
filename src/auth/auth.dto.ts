@@ -1,5 +1,4 @@
 import {ApiProperty} from "@nestjs/swagger";
-import {Prop} from "@nestjs/mongoose";
 
 export class LoginDTO {
     @ApiProperty({ type: String, description: 'Username'})

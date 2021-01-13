@@ -1,5 +1,4 @@
 import {Body, Controller, Get, Post, Req, Res, UseGuards} from '@nestjs/common';
-
 import {UserService} from '../users/users.service';
 import {Payload} from '../types/payload';
 import {LoginDTO, RegisterDTO, SaveGitHubUserDTO} from './auth.dto';
@@ -174,15 +173,10 @@ export class AuthController {
                 res.redirect('http://192.168.3.129:4200/login?token=' + signedToken);
             } else {
                 res.redirect(`http://192.168.3.129:4200/login?token=null&error=Login did not succeed!`);
-                //res.json({success: false, message: "Login did not succeed!"});
             }
         }
         catch (err) {
             res.redirect(`http://192.168.3.129:4200/login?token=null&error=${err.message}`);
-            // res.json({
-            //     success: false,
-            //     message: err.message
-            // })
         }
     }
 

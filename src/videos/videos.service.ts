@@ -51,7 +51,14 @@ export class VideosService {
 
         let videos = userVideos.concat(gitHubUserVideos);
         videos = videos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
-        return videos;
+
+        const publicVideos = new Array<Video>();
+        videos.forEach(video => {
+            if (video.stat === 1) {
+                publicVideos.push(video);
+            }
+        })
+        return publicVideos;
     }
 
 
@@ -133,8 +140,15 @@ export class VideosService {
         const gitHubUserVideos = await this.gitHubUserModel.aggregate(aggregation);
         let latestVideos = userVideos.concat(gitHubUserVideos);
         latestVideos = latestVideos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
-        latestVideos = latestVideos.slice(0,limit);
-        return latestVideos
+
+        let latestPublicVideos = new Array<Video>();
+        latestVideos.forEach(video => {
+            if (video.stat === 1) {
+                latestPublicVideos.push(video);
+            }
+        })
+        latestPublicVideos = latestPublicVideos.slice(0,limit);
+        return latestPublicVideos
     }
 
 
@@ -230,7 +244,14 @@ export class VideosService {
         let allVideos = userVideos.concat(gitHubUserVideos);
         allVideos = allVideos.sort((a,b) => (new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()));
 
-        return allVideos;
+        const allPublicVideos = new Array<Video>();
+        allVideos.forEach(video => {
+            if (video.stat === 1) {
+                allPublicVideos.push(video);
+            }
+        });
+
+        return allPublicVideos;
     }
 
 
@@ -319,7 +340,16 @@ export class VideosService {
         const videos = await this.userModel.aggregate(matchingQuery);
         const gitHubVideos = await this.gitHubUserModel.aggregate(matchingQuery);
 
-        return videos.concat(gitHubVideos);
+        const allVideos = videos.concat(gitHubVideos);
+        const allPublicVideos = new Array<Video>();
+
+        allVideos.forEach(video => {
+            if (video.stat === 1) {
+                allPublicVideos.push(video);
+            }
+        });
+
+        return allPublicVideos;
     }
 
 

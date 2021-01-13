@@ -59,11 +59,31 @@ export class UsersController {
     }
 
 
-    @Get('/github/:repo/commits')
+    @Post('/github/languages')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    async getGitHubUserRepoCommits(@Req() req: Request, @Param('repo') repo: string): Promise<any> {
-        return await this.userService.getGitHubUserRepoCommits(req.user, repo);
+    async getGitHubUserRepoLanguages(
+        @Req() req: Request,
+        @Body('name') name: string,
+        @Body('owner') username: string
+    ): Promise<any> {
+        const user = req.user;
+
+        return await this.userService.getGitHubUserRepoLanguages(user, username, name);
+    }
+
+
+    @Post('/github/commits')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async getGitHubUserRepoCommits(
+        @Req() req: Request,
+        @Body('name') name: string,
+        @Body('owner') username: string
+    ): Promise<any> {
+        const user = req.user;
+
+        return await this.userService.getGitHubUserRepoCommits(user, username, name);
     }
 
 
@@ -71,7 +91,9 @@ export class UsersController {
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
     async getGitHubUserVideosAndComments(@Req() req: Request): Promise<any> {
-        return await this.userService.getGitHubUserVideos(req.user['username']);
+        const username = req.user['username'];
+
+        return await this.userService.getGitHubUserVideos(username);
     }
 
 
@@ -79,6 +101,8 @@ export class UsersController {
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
     async createGitHubUserRepo(@Req() req: Request, @Body() repositoryData: any): Promise<any> {
-        return await this.userService.createGitHubRepo(req.user, repositoryData);
+        const user = req.user;
+
+        return await this.userService.createGitHubRepo(user, repositoryData);
     }
 }

@@ -136,11 +136,12 @@ export class UserService {
     }
 
 
-    async getGitHubUserRepoCommits(user: any, repoName: string): Promise<any> {
+    async getGitHubUserRepoCommits(user: any, username: string, repoName: string): Promise<any> {
         try {
-            const request = await this.http.get(`https://api.github.com/repos/${user['username']}/${repoName}/commits`, {
+            const request = await this.http.get<any>(`https://api.github.com/repos/${username}/${repoName}/commits`, {
                 headers: {
-                    Authorization: `token ${user['access_token']}`
+                    Authorization: `token ${user['access_token']}`,
+                    Accept: 'application/vnd.github.v3+json'
                 }
             }).toPromise();
 
@@ -156,7 +157,7 @@ export class UserService {
             });
 
             const groups = response.reduce((groups, commit) => {
-                const date = commit.date.split('T')[0];
+                const date = new Date(commit.date).toDateString();
                 if (!groups[date]) {
                     groups[date] = [];
                 }
@@ -175,6 +176,24 @@ export class UserService {
             return err.message;
         }
     }
+
+
+    async getGitHubUserRepoLanguages(user: any, username: string, repoName: string): Promise<any> {
+        try {
+            const request = await this.http.get(`https://api.github.com/repos/${username}/${repoName}/languages`, {
+                headers: {
+                    Authorization: `token ${user['access_token']}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            }).toPromise();
+
+            return request.data;
+        }
+        catch (err) {
+            return err.message;
+        }
+    }
+
 
     async getGitHubUserVideos(gitHubUserUsername: string): Promise<any> {
         return this.gitHubUserModel.findOne({ username: gitHubUserUsername }).select('username videos comments');

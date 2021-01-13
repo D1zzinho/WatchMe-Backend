@@ -36,7 +36,7 @@ export class User extends Document {
 
     @Prop()
     @ApiProperty({ description: 'User comments' })
-    comments: Array<any>;
+    comments: Array<Comment>;
 
     @Prop({ default: 1 })
     @ApiProperty({ description: 'User permissions' })
