@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import {Video} from "../../videos/schemas/video.schema";
 import {ApiProperty} from "@nestjs/swagger";
+import {Video} from "../../videos/schemas/video.schema";
+import {Playlist} from "../../playlists/schemas/playlist.schema";
 
 
 @Schema({ versionKey: false })
@@ -33,6 +34,10 @@ export class User extends Document {
     @Prop()
     @ApiProperty({ description: 'Videos added by user' })
     videos: Array<Video>;
+
+    @Prop()
+    @ApiProperty({ description: 'User playlists' })
+    playlists: Array<Playlist>;
 
     @Prop()
     @ApiProperty({ description: 'User comments' })

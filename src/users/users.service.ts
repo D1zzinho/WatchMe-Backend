@@ -120,6 +120,11 @@ export class UserService {
     }
 
 
+    async findGitHubUserByUsernameSelectId(gitHubUserName: string): Promise<GitHubUser> {
+        return this.gitHubUserModel.findOne({ username: gitHubUserName }).select('_id username name avatar');
+    }
+
+
     async getGitHubUserRepos(user: any): Promise<any> {
         try {
             const request = await this.http.get(`https://api.github.com/user/repos`, {

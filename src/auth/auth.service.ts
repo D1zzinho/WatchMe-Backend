@@ -78,7 +78,17 @@ export class AuthService {
             return request.data;
         }
         catch (err) {
-            throw new UnauthorizedException(err);
+            throw new UnauthorizedException(err.message);
+        }
+    }
+
+
+    async getSystemGitHubUserByUsername(username: string): Promise<any> {
+        try {
+            return await this.userService.findGitHubUserByUsernameSelectId(username);
+        }
+        catch (err) {
+            throw new UnauthorizedException(err.message);
         }
     }
 }

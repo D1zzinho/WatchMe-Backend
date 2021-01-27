@@ -299,7 +299,7 @@ export class VideosService {
         });
         matchingQuery.push({
             '$project': {
-                '_id': 0,
+                '_id': '$videos._id',
                 'id': '$videos._id',
                 'title': '$videos.title',
                 'desc': '$videos.desc',

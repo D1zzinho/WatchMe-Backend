@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import {ConfigModule} from "@nestjs/config";
 import {PassportModule} from "@nestjs/passport";
 import { CommentsModule } from './comments/comments.module';
+import { PlaylistsModule } from './playlists/playlists.module';
 
 @Module({
     imports: [
@@ -20,7 +21,8 @@ import { CommentsModule } from './comments/comments.module';
         VideosModule,
         AuthModule,
         UsersModule,
-        CommentsModule
+        CommentsModule,
+        PlaylistsModule
 ],
     controllers: [AppController],
     providers: [AppService],

@@ -26,6 +26,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         }
         else {
             const user = await this.authService.getGitHubUser(payload);
+            const userFromDatabase = await this.authService.getSystemGitHubUserByUsername(user.login);
+
             if (!user) {
                 return done(
                     new HttpException('Unauthorized access', HttpStatus.UNAUTHORIZED),
@@ -33,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                 );
             }
 
-            return done(null, { username: user.login, avatar: user.avatar_url, type: 'github', access_token: payload.access_token });
+            return done(null, { _id: userFromDatabase._id, username: user.login, avatar: user.avatar_url, type: 'github', access_token: payload.access_token });
         }
     }
 }
