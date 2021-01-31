@@ -157,4 +157,21 @@ export class PlaylistsService {
 
         return newVideoInPlaylist;
     }
+
+
+    async deleteVideoFromPlaylist(user: any, playlistId: string, videoId: string): Promise<any> {
+        const video = await this.videoService.findVideo(videoId);
+
+        let model;
+        if (user['type'] === undefined) {
+            model = this.userModel;
+
+            await model.updateOne({"playlists._id": Types.ObjectId(playlistId)}, {"$pull": {"playlists.$.videos": { "title": video[0].title }}});
+        }
+        else {
+            model = this.gitHubUserModel;
+
+            await model.updateOne({"playlists._id": Types.ObjectId(playlistId)}, {"$pull": {"playlists.$.videos": { "title": video[0].title }}});
+        }
+    }
 }

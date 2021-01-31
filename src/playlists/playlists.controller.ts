@@ -219,6 +219,60 @@ export class PlaylistsController {
         catch (err) {
             return res.json({
                 added: false,
+                addedVideo: null,
+                message: err.message
+            });
+        }
+    }
+
+
+    @Patch('deleteFrom/:playlistId')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    async deleteVideoFromPlaylist(
+        @Req() req: Request,
+        @Res() res: Response,
+        @Param('playlistId') playlistId: string,
+        @Body('videoId') videoId: string
+    ): Promise<Response<any>> {
+        try {
+            const user = req.user;
+            const foundPlaylist = await this.playlistService.findPlaylist(playlistId);
+
+            if (String(foundPlaylist['authorId']) === String(user['_id'])) {
+                const index = foundPlaylist.videos.find(video => {
+                    return video._id == videoId
+                });
+
+                if (index !== undefined) {
+                    await this.playlistService.deleteVideoFromPlaylist(user, playlistId, videoId);
+
+                    return res.json({
+                        deleted: true,
+                        deletedVideo: videoId,
+                        message: `Current video successfully deleted from playlist ${foundPlaylist.name}!`
+                    });
+                }
+                else {
+                    return res.json({
+                        deleted: false,
+                        deletedVideo: null,
+                        message: `This video doesn't exist in playlist ${foundPlaylist.name}!`
+                    });
+                }
+            }
+            else {
+                return res.json({
+                    deleted: false,
+                    deletedVideo: null,
+                    message: `This playlist is private!`
+                });
+            }
+        }
+        catch (err) {
+            return res.json({
+                deleted: false,
+                deletedVideo: null,
                 message: err.message
             });
         }
