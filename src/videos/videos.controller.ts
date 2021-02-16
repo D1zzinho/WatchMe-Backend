@@ -112,22 +112,14 @@ export class VideosController {
     @Get('/search')
     @UseGuards(AuthGuard('jwt'))
     @ApiBearerAuth()
-    async searchVideos(@Res() res: any, @Query('query') query: string, @Query('page') pageParam: any): Promise<JSON> {
+    async searchVideos(@Res() res: Response, @Query('query') query: string): Promise<Response> {
         try {
             let videos: Array<Video> = new Array<Video>();
-            let pages: any = null;
-            let videosOnPage: Array<Video> = null;
             let message: string;
             let found = false;
 
             if (query !== '') {
                 videos = await this.videosService.searchVideosByQuery(query);
-
-                const page = parseInt(pageParam) || 1;
-                const pageSize = 20;
-
-                pages = paginate(videos.length, page, pageSize);
-                videosOnPage = videos.slice(pages.startIndex, pages.endIndex + 1);
 
                 message = `Found ${videos.length} videos`;
                 found = true;
@@ -136,15 +128,16 @@ export class VideosController {
                 message = `Query cannot be null!`;
             }
 
-            return await res.json({
+            return res.json({
                 isResult: found,
-                pages,
-                videosOnPage,
+                videos: videos,
                 message: message
             });
         }
         catch (err) {
-            return await res.json({
+            return res.json({
+                isResult: false,
+                videos: null,
                 message: err.message
             });
         }

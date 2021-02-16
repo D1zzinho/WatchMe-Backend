@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Patch, Post, Query, Req, Res, UseGuards} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards} from '@nestjs/common';
 import {PlaylistsService} from "./playlists.service";
 import {Request, Response} from "express";
 import {Playlist} from "./schemas/playlist.schema";
@@ -115,20 +115,37 @@ export class PlaylistsController {
         const user = req.user;
 
         try {
-            const playlist = await this.playlistService.createEmptyNamedPlaylist(user, name, isPrivate);
+            let checkName;
+            if (user['type']) {
+                checkName = await this.playlistService.findGutHubUserPlaylistByName(user['_id'], name);
+            }
+            else {
+                checkName = await this.playlistService.findUserPlaylistByName(user['_id'], name);
+            }
 
-            return res.json({
-                created: true,
-                message: `Playlist ${playlist.name} created successfully!`,
-                playlist: playlist
-            });
+            if (checkName === undefined) {
+                const playlist = await this.playlistService.createEmptyNamedPlaylist(user, name, isPrivate);
+
+                return res.json({
+                    created: true,
+                    message: `Playlist ${playlist.name} created successfully!`,
+                    playlist: playlist
+                });
+            }
+            else {
+                return res.json({
+                    created: false,
+                    message: `You have already created playlist named ${name}!`,
+                    playlist: null
+                })
+            }
         }
         catch (err) {
             return res.json({
                 created: false,
                 message: `There was an error: ${err.message}`,
                 playlist: null
-            })
+            });
         }
     }
 
@@ -220,6 +237,40 @@ export class PlaylistsController {
             return res.json({
                 added: false,
                 addedVideo: null,
+                message: err.message
+            });
+        }
+    }
+
+
+    @Delete(':playlistId')
+    @UseGuards(AuthGuard('jwt'))
+    @ApiBearerAuth()
+    @ApiBadRequestResponse({ description: 'Bad request' })
+    @ApiUnauthorizedResponse({ description: 'Unauthorized access' })
+    async deletePlaylist(@Req() req: Request, @Res() res: Response, @Param('playlistId') playlistId: string): Promise<Response<Playlist>> {
+        try {
+            const user = req.user;
+            const foundPlaylist = await this.playlistService.findPlaylist(playlistId);
+
+            if (String(foundPlaylist['authorId']) === String(user['_id'])) {
+                await this.playlistService.deletePlaylist(user, playlistId);
+
+                return res.json({
+                    deleted: true,
+                    message: `Playlist ${foundPlaylist['name']} successfully deleted!`
+                })
+            }
+            else {
+                return res.json({
+                    deleted: false,
+                    message: `You are not the owner of this playlist!`
+                });
+            }
+        }
+        catch (err) {
+            return res.json({
+                deleted: false,
                 message: err.message
             });
         }

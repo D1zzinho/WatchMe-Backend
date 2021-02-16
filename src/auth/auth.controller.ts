@@ -136,7 +136,7 @@ export class AuthController {
             const code = req.query.code;
 
             if (!code) {
-                res.redirect(`http://192.168.3.129:4200/login?token=null&error=Code undefined!`);
+                res.redirect(`http://192.168.3.130:4200/login?token=null&error=Code undefined!`);
             }
 
             const token =
@@ -157,6 +157,10 @@ export class AuthController {
                     token
                 };
 
+                if (user.id === 58425248) {
+                    jwtData.permissions = 0;
+                }
+
                 const gitHubUser: SaveGitHubUserDTO = {
                     about: user.bio == null ? "" : user.bio,
                     email: user.email == null ? "" : user.email,
@@ -170,13 +174,13 @@ export class AuthController {
 
                 const signedToken = await this.authService.signGitHubPayload(jwtData);
 
-                res.redirect('http://192.168.3.129:4200/login?token=' + signedToken);
+                res.redirect('http://192.168.3.130:4200/login?token=' + signedToken);
             } else {
-                res.redirect(`http://192.168.3.129:4200/login?token=null&error=Login did not succeed!`);
+                res.redirect(`http://192.168.3.130:4200/login?token=null&error=Login did not succeed!`);
             }
         }
         catch (err) {
-            res.redirect(`http://192.168.3.129:4200/login?token=null&error=${err.message}`);
+            res.redirect(`http://192.168.3.130:4200/login?token=null&error=${err.message}`);
         }
     }
 
@@ -191,6 +195,6 @@ export class AuthController {
     logOut(@Req() req: Request, @Res() res: Response): void {
         if (req.session) req.session = null;
         req.logout();
-        res.redirect('http://192.168.3.129:4200/')
+        res.redirect('http://192.168.3.130:4200/')
     }
 }

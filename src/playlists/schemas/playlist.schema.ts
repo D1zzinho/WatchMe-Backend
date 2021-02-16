@@ -13,7 +13,7 @@ export class Playlist extends Document {
     isPrivate: boolean;
 
     @Prop({ default: new Array<any>() })
-    @ApiProperty({ description: 'Playlist array of videos' })
+    @ApiProperty({ description: 'Playlist array of videos id' })
     videos: Array<any>;
 }
 
